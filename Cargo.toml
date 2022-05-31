@@ -1,0 +1,11 @@
+[package]
+name = "rasta"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bytemuck = { version = "1.9.1", features = ["derive"] }
+image = "0.24.2"
+sdl2 = "0.35.2"
