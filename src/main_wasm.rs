@@ -2,7 +2,7 @@ use wasm_bindgen::{prelude::*, JsCast};
 
 use crate::{
     canvas::Canvas,
-    draw::{draw_line, draw_triangle},
+    draw::{draw_line, draw_shaded_line, draw_shaded_triangle, draw_triangle},
     rasterize::{Color, Point},
     wasm_canvas::WasmCanvas,
 };
@@ -28,6 +28,18 @@ pub fn start() {
 
     let mut wasm_canvas = WasmCanvas::new(canvas, context);
 
+    draw_shaded_line(
+        &mut wasm_canvas,
+        (Point::new(-50, -200), Color(0, 255, 0)),
+        (Point::new(60, 240), Color(0, 0, 255)),
+    );
+
+    draw_shaded_line(
+        &mut wasm_canvas,
+        (Point::new(-150, -200), Color(255, 0, 0)),
+        (Point::new(-40, 240), Color(0, 0, 255)),
+    );
+
     draw_line(
         &mut wasm_canvas,
         Point::new(0, 0),
@@ -35,19 +47,11 @@ pub fn start() {
         Color(255, 0, 0),
     );
 
-    draw_line(
+    draw_shaded_triangle(
         &mut wasm_canvas,
-        Point::new(-50, -200),
-        Point::new(60, 240),
-        Color(255, 0, 0),
-    );
-
-    draw_triangle(
-        &mut wasm_canvas,
-        Point::new(-200, -250),
-        Point::new(200, 50),
-        Point::new(20, 250),
-        Color(128, 210, 0),
+        (Point::new(-200, -250), Color(255, 0, 0)),
+        (Point::new(200, 50), Color(0, 255, 0)),
+        (Point::new(20, 250), Color(0, 20, 255)),
     );
 
     wasm_canvas.draw();
