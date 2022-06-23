@@ -1,7 +1,7 @@
 use sdl2::{render::Texture, video::Window};
 
 use crate::{
-    canvas::{Canvas, IntoPixelValue},
+    canvas::{canvas_coords_to_screen_coords, Canvas, IntoPixelValue},
     rasterize::Color,
 };
 
@@ -35,20 +35,16 @@ impl<'a> SDLCanvas<'a> {
 
 impl<'a> Canvas for SDLCanvas<'a> {
     fn put_pixel<X: IntoPixelValue, Y: IntoPixelValue>(&mut self, x: X, y: Y, color: Color) {
-        let x: i32 = self.width as i32 / 2 + x.into_pixel_value();
-        let y: i32 = (self.height as i32 / 2) - y.into_pixel_value() - 1;
+        match canvas_coords_to_screen_coords(x, y, self.width, self.height) {
+            Some((x, y)) => {
+                let i: usize = (y as usize * self.width as usize * 3) + (x as usize * 3);
 
-        if x < 0 || x >= self.width as i32 || y < 0 || y >= self.height as i32 {
-            return;
+                self.buffer[i] = color.0;
+                self.buffer[i + 1] = color.1;
+                self.buffer[i + 2] = color.2;
+            }
+            None => (),
         }
-        let x = x as usize;
-        let y = y as usize;
-
-        let i: usize = (y * self.width as usize * 3) + (x * 3);
-
-        self.buffer[i] = color.0;
-        self.buffer[i + 1] = color.1;
-        self.buffer[i + 2] = color.2;
     }
 
     fn draw(&mut self) {

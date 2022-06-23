@@ -7,6 +7,22 @@ pub trait Canvas {
     fn draw(&mut self);
 }
 
+pub fn canvas_coords_to_screen_coords<X: IntoPixelValue, Y: IntoPixelValue>(
+    x: X,
+    y: Y,
+    width: u32,
+    height: u32,
+) -> Option<(u32, u32)> {
+    let x: i32 = width as i32 / 2 + x.into_pixel_value();
+    let y: i32 = (height as i32 / 2) - y.into_pixel_value() - 1;
+
+    if x < 0 || x >= width as i32 || y < 0 || y >= height as i32 {
+        return None;
+    }
+
+    Some((x as u32, y as u32))
+}
+
 pub trait IntoPixelValue {
     fn into_pixel_value(self) -> i32;
 }

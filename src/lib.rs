@@ -2,10 +2,12 @@ pub mod canvas;
 pub mod draw;
 pub mod rasterize;
 
-#[cfg(not(feature = "wasm"))]
+#[cfg(not(target_arch = "wasm32"))]
 pub mod main_sdl;
-#[cfg(not(feature = "wasm"))]
+#[cfg(not(target_arch = "wasm32"))]
 pub mod sdl_canvas;
 
-#[cfg(feature = "wasm")]
+#[cfg(target_arch = "wasm32")]
 pub mod main_wasm;
+#[cfg(target_arch = "wasm32")]
+pub mod wasm_canvas;

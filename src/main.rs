@@ -1,9 +1,10 @@
-#[cfg(not(feature = "wasm"))]
+#[cfg(not(target_arch = "wasm32"))]
 fn main() -> Result<(), String> {
     rasta::main_sdl::main()
 }
 
-#[cfg(feature = "wasm")]
+#[cfg(target_arch = "wasm32")]
 fn main() -> Result<(), String> {
-    rasta::main_wasm::main()
+    rasta::main_wasm::start();
+    Ok(())
 }
