@@ -3,7 +3,12 @@ use core::time;
 use image::{open, GenericImageView};
 use sdl2::{event::Event, keyboard::Keycode, pixels::PixelFormatEnum};
 
-use crate::{canvas::Canvas, rasterize::Color, sdl_canvas::SDLCanvas};
+use crate::{
+    canvas::Canvas,
+    draw::{draw_line, draw_line_broken},
+    rasterize::{Color, Point},
+    sdl_canvas::SDLCanvas,
+};
 
 const WIDTH: u32 = 960;
 const HEIGHT: u32 = 540;
@@ -53,12 +58,31 @@ pub fn main() -> Result<(), String> {
                 // texture_buf[i + 1] = pix.1;
                 // texture_buf[i + 2] = pix.2;
                 // i += 3;
-                sdl_canvas.put_pixel(x, img.h - y, pix);
+                sdl_canvas.put_pixel(x as i32, img.h as i32 - y as i32, pix);
             }
 
             // i = (y * WIDTH * 3) as usize;
         }
     }
+
+    // draw_line(
+    //     &mut sdl_canvas,
+    //     Point::new(-50, -50),
+    //     Point::new(0, 0),
+    //     Color(255, 0, 0),
+    // );
+    // draw_line(
+    //     &mut sdl_canvas,
+    //     Point::new(-50, -50),
+    //     Point::new(-50, 100),
+    //     Color(255, 0, 0),
+    // );
+    draw_line(
+        &mut sdl_canvas,
+        Point::new(-50, -200),
+        Point::new(60, 240),
+        Color(255, 0, 0),
+    );
 
     'running: loop {
         for event in event_pump.poll_iter() {

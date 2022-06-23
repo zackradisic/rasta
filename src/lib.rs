@@ -1,4 +1,5 @@
 pub mod canvas;
+pub mod draw;
 pub mod rasterize;
 
 #[cfg(not(feature = "wasm"))]
