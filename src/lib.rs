@@ -1,5 +1,6 @@
 pub mod canvas;
 pub mod draw;
+pub mod math;
 pub mod rasterize;
 
 #[cfg(not(target_arch = "wasm32"))]

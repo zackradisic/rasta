@@ -1,16 +1,38 @@
-use std::mem::take;
+use std::ops::{Div, Mul};
 
 use crate::{
     canvas::Canvas,
-    rasterize::{Color, Point, Vec3},
+    math::{Vec2, Vec3},
+    rasterize::{Color, Point},
 };
+
+pub fn viewport_to_canvas<T: Mul<Output = T> + Div<Output = T>>(
+    p: Vec2<T>,
+    cw: T,
+    ch: T,
+    vw: T,
+    vh: T,
+) -> Vec2<T> {
+    Vec2(p.0 * cw / vw, p.1 * ch / vh)
+}
+
+pub fn project_vertex<T: Mul<Output = T> + Div<Output = T> + Copy>(
+    v: Vec3<T>,
+    d: T,
+    cw: T,
+    ch: T,
+    vw: T,
+    vh: T,
+) -> Vec2<T> {
+    viewport_to_canvas(Vec2(v.0 * d / v.2, v.1 * d / v.2), cw, ch, vw, vh)
+}
 
 pub fn draw_line_broken<C: Canvas>(
     canvas: &mut C,
-    mut x0: i32,
-    mut y0: i32,
-    mut x1: i32,
-    mut y1: i32,
+    mut x0: f32,
+    mut y0: f32,
+    mut x1: f32,
+    mut y1: f32,
     color: Color,
 ) {
     // make sure x0 < x1
@@ -22,13 +44,15 @@ pub fn draw_line_broken<C: Canvas>(
     let a = (y1 - y0) / (x1 - x0);
 
     let mut y = y0;
-    for x in x0..=x1 {
+    let mut x = x0;
+    while x <= x1 {
         canvas.put_pixel(x, y, color);
         y += a;
+        x += 1.0;
     }
 }
 
-pub fn interpolate(i0: i32, d0: i32, i1: i32, d1: i32) -> Vec<f32> {
+pub fn interpolate(mut i0: f32, d0: f32, i1: f32, d1: f32) -> Vec<f32> {
     if i0 == i1 {
         return vec![d0 as f32];
     }
@@ -38,9 +62,10 @@ pub fn interpolate(i0: i32, d0: i32, i1: i32, d1: i32) -> Vec<f32> {
     let a: f32 = (d1 - d0) as f32 / (i1 - i0) as f32;
     let mut d: f32 = d0 as f32;
 
-    for _ in i0..=i1 {
+    while i0 <= i1 {
         ret.push(d);
         d += a;
+        i0 += 1.0;
     }
 
     ret
@@ -52,23 +77,27 @@ pub fn draw_line<C: Canvas>(canvas: &mut C, mut p0: Point, mut p1: Point, color:
 
     if dx.abs() > dy.abs() {
         // line is horizontalish, make sure x0 < x1
-        if dx < 0 {
+        if dx < 0.0 {
             std::mem::swap(&mut p0, &mut p1);
         }
 
         let ys = interpolate(p0.x, p0.y, p1.x, p1.y);
-        for x in p0.x..=p1.x {
+        let mut x = p0.x;
+        while x <= p1.x {
             canvas.put_pixel(x, ys[(x - p0.x) as usize], color);
+            x += 1.0;
         }
     } else {
         // line is verticalish, make sure it's bottom to to
-        if dy < 0 {
+        if dy < 0.0 {
             std::mem::swap(&mut p0, &mut p1);
         }
 
         let xs = interpolate(p0.y, p0.x, p1.y, p1.x);
-        for y in p0.y..=p1.y {
+        let mut y = p0.y;
+        while y <= p1.y {
             canvas.put_pixel(xs[(y - p0.y) as usize], y, color);
+            y += 1.0;
         }
     }
 }
@@ -83,7 +112,7 @@ pub fn draw_shaded_line<C: Canvas>(
 
     if dx.abs() > dy.abs() {
         // line is horizontalish, make sure x0 < x1
-        if dx < 0 {
+        if dx < 0.0 {
             std::mem::swap(&mut p0, &mut p1);
             std::mem::swap(&mut c0, &mut c1);
         }
@@ -91,20 +120,24 @@ pub fn draw_shaded_line<C: Canvas>(
         let ys = interpolate(p0.x, p0.y, p1.x, p1.y);
         let colors = interpolate_color(p0.x, c0, p1.x, c1);
 
-        for x in p0.x..=p1.x {
+        let mut x = p0.x;
+        while x <= p1.x {
             canvas.put_pixel(x, ys[(x - p0.x) as usize], colors[(x - p0.x) as usize]);
+            x += 1.0;
         }
     } else {
         // line is verticalish, make sure it's bottom to to
-        if dy < 0 {
+        if dy < 0.0 {
             std::mem::swap(&mut p0, &mut p1);
             std::mem::swap(&mut c0, &mut c1);
         }
 
         let xs = interpolate(p0.y, p0.x, p1.y, p1.x);
         let colors = interpolate_color(p0.y, c0, p1.y, c1);
-        for y in p0.y..=p1.y {
+        let mut y = p0.y;
+        while y <= p1.y {
             canvas.put_pixel(xs[(y - p0.y) as usize], y, colors[(y - p0.y) as usize]);
+            y += 1.0;
         }
     }
 }
@@ -161,7 +194,8 @@ pub fn draw_triangle<C: Canvas>(
     };
 
     // Draw
-    for y in p0.y..=p2.y {
+    let mut y = p0.y;
+    while y <= p2.y {
         let mut x = x_left[(y - p0.y) as usize] as i32;
         loop {
             if x > x_right[(y - p0.y) as usize] as i32 {
@@ -172,10 +206,11 @@ pub fn draw_triangle<C: Canvas>(
 
             x += 1;
         }
+        y += 1.0;
     }
 }
 
-pub fn interpolate_color(i0: i32, d0: Color, i1: i32, d1: Color) -> Vec<Color> {
+pub fn interpolate_color(mut i0: f32, d0: Color, i1: f32, d1: Color) -> Vec<Color> {
     if i0 == i1 {
         return vec![d0];
     }
@@ -192,11 +227,12 @@ pub fn interpolate_color(i0: i32, d0: Color, i1: i32, d1: Color) -> Vec<Color> {
 
     let mut d = d0;
 
-    for _ in i0..=i1 {
+    while i0 <= i1 {
         ret.push(Color::from_vec3_f32s(d.clone()).unwrap());
         d.0 += a_r;
         d.1 += a_g;
         d.2 += a_b;
+        i0 += 1.0;
     }
 
     ret
@@ -253,7 +289,8 @@ pub fn draw_shaded_triangle<C: Canvas>(
     };
 
     // Draw
-    for y in p0.y..=p2.y {
+    let mut y = p0.y;
+    while y <= p2.y {
         let mut x = x_left[(y - p0.y) as usize] as i32;
         let color_idx = (y - p0.y) as usize;
         let color = if color_idx < h_left.len() {
@@ -271,5 +308,51 @@ pub fn draw_shaded_triangle<C: Canvas>(
 
             x += 1;
         }
+        y += 1.0;
     }
+}
+
+pub fn draw_cube_wireframe<C: Canvas>(
+    canvas: &mut C,
+    front_vertices: [Vec3<f32>; 4],
+    back_vertices: [Vec3<f32>; 4],
+    (vw, vh): (f32, f32),
+    d: f32,
+) {
+    let front_vertices: Vec<_> = front_vertices
+        .into_iter()
+        .map(|p| project_vertex(p, d, canvas.width() as f32, canvas.height() as f32, vw, vh).into())
+        .collect();
+    let back_vertices: Vec<_> = back_vertices
+        .into_iter()
+        .map(|p| project_vertex(p, d, canvas.width() as f32, canvas.height() as f32, vw, vh).into())
+        .collect();
+
+    let f0 = front_vertices[0];
+    let f1 = front_vertices[1];
+    let f2 = front_vertices[2];
+    let f3 = front_vertices[3];
+
+    let b0 = back_vertices[0];
+    let b1 = back_vertices[1];
+    let b2 = back_vertices[2];
+    let b3 = back_vertices[3];
+
+    // back
+    draw_line(canvas, b0, b1, Color::RED);
+    draw_line(canvas, b1, b2, Color::RED);
+    draw_line(canvas, b2, b3, Color::RED);
+    draw_line(canvas, b3, b0, Color::RED);
+
+    // front to back lines
+    draw_line(canvas, f0, b0, Color::GREEN);
+    draw_line(canvas, f1, b1, Color::GREEN);
+    draw_line(canvas, f2, b2, Color::GREEN);
+    draw_line(canvas, f3, b3, Color::GREEN);
+
+    // front lines
+    draw_line(canvas, f0, f1, Color::BLUE);
+    draw_line(canvas, f1, f2, Color::BLUE);
+    draw_line(canvas, f2, f3, Color::BLUE);
+    draw_line(canvas, f3, f0, Color::BLUE);
 }

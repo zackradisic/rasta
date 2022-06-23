@@ -5,6 +5,9 @@ pub trait Canvas {
 
     /// Display the contents of the offscreen buffer into the canvas.
     fn draw(&mut self);
+
+    fn width(&self) -> u32;
+    fn height(&self) -> u32;
 }
 
 pub fn canvas_coords_to_screen_coords<X: IntoPixelValue, Y: IntoPixelValue>(

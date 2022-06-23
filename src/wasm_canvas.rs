@@ -60,4 +60,12 @@ impl Canvas for WasmCanvas {
             .put_image_data(&self.canvas_buffer, 0.0, 0.0)
             .unwrap();
     }
+
+    fn width(&self) -> u32 {
+        self.width
+    }
+
+    fn height(&self) -> u32 {
+        self.height
+    }
 }

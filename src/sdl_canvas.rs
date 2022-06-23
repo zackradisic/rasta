@@ -63,4 +63,12 @@ impl<'a> Canvas for SDLCanvas<'a> {
         // And finally, the canvas is shown
         self.inner.present();
     }
+
+    fn width(&self) -> u32 {
+        self.width
+    }
+
+    fn height(&self) -> u32 {
+        self.height
+    }
 }
