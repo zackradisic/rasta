@@ -2,7 +2,7 @@ use wasm_bindgen::{prelude::*, JsCast};
 
 use crate::{
     canvas::Canvas,
-    draw::draw_line,
+    draw::{draw_line, draw_triangle},
     rasterize::{Color, Point},
     wasm_canvas::WasmCanvas,
 };
@@ -40,6 +40,14 @@ pub fn start() {
         Point::new(-50, -200),
         Point::new(60, 240),
         Color(255, 0, 0),
+    );
+
+    draw_triangle(
+        &mut wasm_canvas,
+        Point::new(-200, -250),
+        Point::new(200, 50),
+        Point::new(20, 250),
+        Color(128, 210, 0),
     );
 
     wasm_canvas.draw();

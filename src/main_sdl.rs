@@ -5,7 +5,7 @@ use sdl2::{event::Event, keyboard::Keycode, pixels::PixelFormatEnum};
 
 use crate::{
     canvas::Canvas,
-    draw::{draw_line, draw_line_broken},
+    draw::{draw_line, draw_line_broken, draw_triangle, draw_wireframe_triangle},
     rasterize::{Color, Point},
     sdl_canvas::SDLCanvas,
 };
@@ -65,22 +65,11 @@ pub fn main() -> Result<(), String> {
         }
     }
 
-    // draw_line(
-    //     &mut sdl_canvas,
-    //     Point::new(-50, -50),
-    //     Point::new(0, 0),
-    //     Color(255, 0, 0),
-    // );
-    // draw_line(
-    //     &mut sdl_canvas,
-    //     Point::new(-50, -50),
-    //     Point::new(-50, 100),
-    //     Color(255, 0, 0),
-    // );
-    draw_line(
+    draw_triangle(
         &mut sdl_canvas,
-        Point::new(-50, -200),
-        Point::new(60, 240),
+        Point::new(-200, -250),
+        Point::new(200, 50),
+        Point::new(20, 250),
         Color(255, 0, 0),
     );
 
