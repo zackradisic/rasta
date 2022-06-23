@@ -9,3 +9,6 @@ edition = "2021"
 bytemuck = { version = "1.9.1", features = ["derive"] }
 image = "0.24.2"
 sdl2 = "0.35.2"
+
+[features]
+wasm = []
