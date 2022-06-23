@@ -28,6 +28,8 @@ pub fn start() {
 
     let mut wasm_canvas = WasmCanvas::new(canvas, context);
 
+    wasm_canvas.clear(Color(21, 20, 28));
+
     draw_shaded_line(
         &mut wasm_canvas,
         (Point::new(-50.0, -200.0), Color(0, 255, 0)),

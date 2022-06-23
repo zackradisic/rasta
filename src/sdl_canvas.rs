@@ -47,6 +47,18 @@ impl<'a> Canvas for SDLCanvas<'a> {
         }
     }
 
+    fn clear(&mut self, color: Color) {
+        let mut i = 0;
+        while i < self.buffer.len() {
+            self.buffer[i] = color.0;
+            self.buffer[i + 1] = color.1;
+            self.buffer[i + 2] = color.2;
+            self.buffer[i + 3] = 255;
+
+            i += 4;
+        }
+    }
+
     fn draw(&mut self) {
         self.texture
             .with_lock(None, |buf: &mut [u8], _: usize| {

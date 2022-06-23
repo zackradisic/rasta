@@ -5,6 +5,7 @@ pub trait Canvas {
 
     /// Display the contents of the offscreen buffer into the canvas.
     fn draw(&mut self);
+    fn clear(&mut self, color: Color);
 
     fn width(&self) -> u32;
     fn height(&self) -> u32;
