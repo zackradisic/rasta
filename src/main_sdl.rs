@@ -6,9 +6,10 @@ use sdl2::{event::Event, keyboard::Keycode, pixels::PixelFormatEnum};
 use crate::{
     canvas::Canvas,
     draw::{
-        draw_cube_wireframe, draw_line, draw_line_broken, draw_shaded_line, draw_shaded_triangle,
-        draw_triangle, draw_wireframe_triangle,
+        draw_animated_cube_wireframe, draw_cube_wireframe, draw_line, draw_line_broken,
+        draw_shaded_line, draw_shaded_triangle, draw_triangle, draw_wireframe_triangle,
     },
+    math::Vec3,
     rasterize::{Color, Point},
     sdl_canvas::SDLCanvas,
 };
@@ -81,25 +82,7 @@ pub fn main() -> Result<(), String> {
         (Point::new(-180.0, 250.0), Color(0, 0, 255)),
     );
 
-    let aspect = sdl_canvas.height() as f32 / sdl_canvas.width() as f32;
-    draw_cube_wireframe(
-        &mut sdl_canvas,
-        [
-            (-2.0, -0.5, 5.0).into(),
-            (-2.0, 0.5, 5.0).into(),
-            (-1.0, 0.5, 5.0).into(),
-            (-1.0, -0.5, 5.0).into(),
-        ],
-        [
-            (-2.0, -0.5, 6.0).into(),
-            (-2.0, 0.5, 6.0).into(),
-            (-1.0, 0.5, 6.0).into(),
-            (-1.0, -0.5, 6.0).into(),
-        ],
-        (1.0, aspect),
-        1.0,
-    );
-
+    let mut t = 0;
     'running: loop {
         for event in event_pump.poll_iter() {
             match event {
@@ -110,10 +93,54 @@ pub fn main() -> Result<(), String> {
                 } => break 'running,
                 _ => {}
             }
-
-            sdl_canvas.draw();
-            std::thread::sleep(time::Duration::from_millis(16));
         }
+        sdl_canvas.clear(Color(21, 20, 28));
+
+        let aspect = sdl_canvas.height() as f32 / sdl_canvas.width() as f32;
+        // let x_t = (t as f32 / 60.0) * 1.0;
+        // draw_cube_wireframe(
+        //     &mut sdl_canvas,
+        //     [
+        //         (-2.0 + x_t, -0.5, 5.0).into(),
+        //         (-2.0 + x_t, 0.5, 5.0).into(),
+        //         (-1.0 + x_t, 0.5, 5.0).into(),
+        //         (-1.0 + x_t, -0.5, 5.0).into(),
+        //     ],
+        //     [
+        //         (-2.0 + x_t, -0.5, 6.0).into(),
+        //         (-2.0 + x_t, 0.5, 6.0).into(),
+        //         (-1.0 + x_t, 0.5, 6.0).into(),
+        //         (-1.0 + x_t, -0.5, 6.0).into(),
+        //     ],
+        //     (1.0, aspect),
+        //     1.0,
+        // );
+        draw_animated_cube_wireframe(
+            &mut sdl_canvas,
+            [
+                (-2.0, -0.5, 5.0).into(),
+                (-2.0, 0.5, 5.0).into(),
+                (-1.0, 0.5, 5.0).into(),
+                (-1.0, -0.5, 5.0).into(),
+            ],
+            [
+                (-2.0, -0.5, 6.0).into(),
+                (-2.0, 0.5, 6.0).into(),
+                (-1.0, 0.5, 6.0).into(),
+                (-1.0, -0.5, 6.0).into(),
+            ],
+            (1.0, aspect),
+            01.0,
+            t,
+            // Vec3(0.0, 0.0, 0.0)
+            // Vec3(-1.5, 0.0, 5.5),
+            // Vec3(-1.5, 0.0, 5.5),
+            Vec3(-1.5, 0.0, 5.5),
+        );
+
+        sdl_canvas.draw();
+        t += 1;
+        std::thread::sleep(time::Duration::from_millis(16));
     }
 
     Ok(())

@@ -53,9 +53,8 @@ impl<'a> Canvas for SDLCanvas<'a> {
             self.buffer[i] = color.0;
             self.buffer[i + 1] = color.1;
             self.buffer[i + 2] = color.2;
-            self.buffer[i + 3] = 255;
 
-            i += 4;
+            i += 3;
         }
     }
 

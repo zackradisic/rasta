@@ -2,7 +2,7 @@ use std::ops::{Div, Mul};
 
 use crate::{
     canvas::Canvas,
-    math::{Vec2, Vec3},
+    math::{Degrees, Mat4, Vec2, Vec3, Vec4},
     rasterize::{Color, Point},
 };
 
@@ -355,4 +355,47 @@ pub fn draw_cube_wireframe<C: Canvas>(
     draw_line(canvas, f1, f2, Color::BLUE);
     draw_line(canvas, f2, f3, Color::BLUE);
     draw_line(canvas, f3, f0, Color::BLUE);
+}
+
+pub fn draw_animated_cube_wireframe<C: Canvas>(
+    canvas: &mut C,
+    front_vertices: [Vec3<f32>; 4],
+    back_vertices: [Vec3<f32>; 4],
+    (vw, vh): (f32, f32),
+    d: f32,
+    t: usize,
+    point: Vec3<f32>,
+) {
+    let rotation_matrix = Mat4::rotate_y_axis(Degrees((t as f32 / 60.0) * 15.0), point);
+    let translation_matrix = Mat4::translate(Vec3(0.0, (t as f32 / 30.0).sin() * 0.5, 0.0));
+    let transform = translation_matrix * rotation_matrix;
+
+    let front_vertices: Vec<_> = front_vertices
+        .into_iter()
+        .map(|p| &transform * Vec4(p.0, p.1, p.2, 1.0))
+        .map(|p| Vec3(p.0, p.1, p.2))
+        .collect();
+    let back_vertices: Vec<_> = back_vertices
+        .into_iter()
+        .map(|p| &transform * Vec4(p.0, p.1, p.2, 1.0))
+        .map(|p| Vec3(p.0, p.1, p.2))
+        .collect();
+
+    draw_cube_wireframe(
+        canvas,
+        [
+            front_vertices[0].clone(),
+            front_vertices[1].clone(),
+            front_vertices[2].clone(),
+            front_vertices[3].clone(),
+        ],
+        [
+            back_vertices[0].clone(),
+            back_vertices[1].clone(),
+            back_vertices[2].clone(),
+            back_vertices[3].clone(),
+        ],
+        (vw, vh),
+        d,
+    );
 }
