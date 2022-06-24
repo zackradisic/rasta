@@ -367,7 +367,7 @@ pub fn draw_animated_cube_wireframe<C: Canvas>(
     point: Vec3<f32>,
 ) {
     let rotation_matrix = Mat4::rotate_y_axis(Degrees((t as f32 / 60.0) * 15.0), point);
-    let translation_matrix = Mat4::translate(Vec3(0.0, (t as f32 / 30.0).sin() * 0.5, 0.0));
+    let translation_matrix = Mat4::translate(Vec3(0.0, (t as f32 / 120.0).sin() * 0.5, 0.0));
     let transform = translation_matrix * rotation_matrix;
 
     let front_vertices: Vec<_> = front_vertices
