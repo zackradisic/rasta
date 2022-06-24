@@ -4,6 +4,10 @@ use std::ops::{Add, Div, Index, Mul, Sub};
 
 use crate::rasterize::Color;
 
+// pub trait Vector<T> {
+//     fn mul(&self, rhs: Self) -> Self;
+// }
+
 pub struct Vec2<T>(pub T, pub T);
 
 impl<T: Debug> Debug for Vec2<T> {
@@ -347,6 +351,23 @@ impl Mat4<f32> {
                  0.0, 1.0,      0.0,  0.0,
              r.sin(), 0.0,  r.cos(),  0.0,
                  0.0, 0.0,      0.0,  1.0,
+        );
+
+        translate_back * rotation_matrix * translate_to_origin
+    }
+
+    #[rustfmt::skip]
+    pub fn rotate_z_axis<R: Into<Radians>>(radians: R, point: Vec3<f32>) -> Self {
+        let r: Radians = radians.into();
+        let r: f32 = r.0;
+        let translate_to_origin = Mat4::translate(&point * -1.0);
+        let translate_back = Mat4::translate(point);
+
+        let rotation_matrix = Mat4::new(
+             r.cos(), -r.sin(),  0.0,  0.0,
+             r.sin(),  r.cos(),  0.0,  0.0,
+                 0.0,      0.0,  1.0,  0.0,
+                 0.0,      0.0,  0.0,  1.0,
         );
 
         translate_back * rotation_matrix * translate_to_origin

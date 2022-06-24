@@ -3,6 +3,7 @@ use std::ops::{Div, Mul};
 use crate::{
     canvas::Canvas,
     math::{Degrees, Mat4, Vec2, Vec3, Vec4},
+    object::Cube,
     rasterize::{Color, Point},
 };
 
@@ -398,4 +399,37 @@ pub fn draw_animated_cube_wireframe<C: Canvas>(
         (vw, vh),
         d,
     );
+}
+
+pub fn draw_cube<C: Canvas>(canvas: &mut C, cube: &Cube, (vw, vh): (f32, f32), d: f32) {
+    let cw = canvas.width() as f32;
+    let ch = canvas.height() as f32;
+    for triangle in cube.triangles() {
+        draw_triangle(
+            canvas,
+            project_vertex(triangle.p0.clone(), d, cw, ch, vw, vh).into(),
+            project_vertex(triangle.p1.clone(), d, cw, ch, vw, vh).into(),
+            project_vertex(triangle.p2.clone(), d, cw, ch, vw, vh).into(),
+            triangle.color,
+        )
+    }
+}
+
+pub fn draw_cube_wireframe_obj<C: Canvas>(
+    canvas: &mut C,
+    cube: &Cube,
+    (vw, vh): (f32, f32),
+    d: f32,
+) {
+    let cw = canvas.width() as f32;
+    let ch = canvas.height() as f32;
+    for triangle in cube.triangles() {
+        draw_wireframe_triangle(
+            canvas,
+            project_vertex(triangle.p0.clone(), d, cw, ch, vw, vh).into(),
+            project_vertex(triangle.p1.clone(), d, cw, ch, vw, vh).into(),
+            project_vertex(triangle.p2.clone(), d, cw, ch, vw, vh).into(),
+            triangle.color,
+        )
+    }
 }

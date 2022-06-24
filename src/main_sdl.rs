@@ -6,10 +6,12 @@ use sdl2::{event::Event, keyboard::Keycode, pixels::PixelFormatEnum};
 use crate::{
     canvas::Canvas,
     draw::{
-        draw_animated_cube_wireframe, draw_cube_wireframe, draw_line, draw_line_broken,
-        draw_shaded_line, draw_shaded_triangle, draw_triangle, draw_wireframe_triangle,
+        draw_animated_cube_wireframe, draw_cube, draw_cube_wireframe, draw_cube_wireframe_obj,
+        draw_line, draw_line_broken, draw_shaded_line, draw_shaded_triangle, draw_triangle,
+        draw_wireframe_triangle,
     },
     math::Vec3,
+    object::Cube,
     rasterize::{Color, Point},
     sdl_canvas::SDLCanvas,
 };
@@ -80,6 +82,31 @@ pub fn main() -> Result<(), String> {
         (Point::new(-400.0, -250.0), Color(255, 0, 0)),
         (Point::new(0.0, 50.0), Color(0, 255, 0)),
         (Point::new(-180.0, 250.0), Color(0, 0, 255)),
+    );
+
+    let cube = Cube::new(
+        (-2.0, 0.5, 5.0).into(),
+        (-2.0, -0.5, 5.0).into(),
+        (-1.0, -0.5, 5.0).into(),
+        (-1.0, 0.5, 5.0).into(),
+        (-2.0, 0.5, 6.0).into(),
+        (-2.0, -0.5, 6.0).into(),
+        (-1.0, -0.5, 6.0).into(),
+        (-1.0, 0.5, 6.0).into(),
+        [
+            // Color(255, 0, 0),
+            // Color(0, 255, 0),
+            // Color(0, 0, 255),
+            // Color(255, 255, 0),
+            // Color(0, 255, 255),
+            // Color(255, 0, 255),
+            Color(255, 0, 0),
+            Color(255, 0, 0),
+            Color(255, 0, 0),
+            Color(255, 0, 0),
+            Color(255, 0, 0),
+            Color(255, 0, 0),
+        ],
     );
 
     let mut t = 0;
@@ -175,6 +202,8 @@ pub fn main() -> Result<(), String> {
             t,
             Vec3(-1.5 + 2.0, 0.0, 5.5 + 2.5),
         );
+
+        draw_cube_wireframe_obj(&mut sdl_canvas, &cube, (1.0, aspect), 1.0);
 
         sdl_canvas.draw();
         t += 1;
