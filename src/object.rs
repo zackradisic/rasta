@@ -62,6 +62,7 @@ impl<'a, M: Model<'a>> InstanceBuilder<'a, M> {
             rotation_y,
             color: self.color.unwrap_or(Color(0, 0, 0)),
             transform_matrix,
+            matrix_needs_update: false,
         }
     }
 }
@@ -69,11 +70,12 @@ impl<'a, M: Model<'a>> InstanceBuilder<'a, M> {
 #[derive(Clone)]
 pub struct Instance<'a, M: Model<'a>> {
     pub model: &'a M,
-    pub pos: Vec3<f32>,
-    pub scale: Vec3<f32>,
-    pub rotation_y: Radians,
-    pub color: Color,
+    pos: Vec3<f32>,
+    scale: Vec3<f32>,
+    rotation_y: Radians,
+    color: Color,
 
+    matrix_needs_update: bool,
     pub transform_matrix: Mat4<f32>,
 }
 
@@ -82,10 +84,39 @@ impl<'a, M: Model<'a>> Instance<'a, M> {
         InstanceBuilder::new(model)
     }
 
+    pub fn update_transform_matrix(&mut self) {
+        if self.matrix_needs_update {
+            self.transform_matrix = Self::build_transform_matrix(
+                self.pos.clone(),
+                self.scale.clone(),
+                self.rotation_y.clone(),
+            );
+            self.matrix_needs_update = false;
+        }
+    }
+
+    pub fn rotation(&self) -> Radians {
+        self.rotation_y
+    }
+
+    pub fn set_rotation<R: Into<Radians>>(&mut self, r: R) {
+        self.rotation_y = r.into();
+        self.matrix_needs_update = true;
+    }
+
+    pub fn pos(&self) -> Vec3<f32> {
+        self.pos.clone()
+    }
+
+    pub fn set_pos(&mut self, pos: Vec3<f32>) {
+        self.pos = pos;
+        self.matrix_needs_update = true;
+    }
+
     fn build_transform_matrix(pos: Vec3<f32>, scale: Vec3<f32>, rotation_y: Radians) -> Mat4<f32> {
         Mat4::translate(pos)
-            * Mat4::scale(scale)
             * Mat4::rotate_y_axis(rotation_y, Vec3(0.0, 0.0, 0.0))
+            * Mat4::scale(scale)
     }
 }
 

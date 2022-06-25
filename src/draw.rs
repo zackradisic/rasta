@@ -197,9 +197,15 @@ pub fn draw_triangle<C: Canvas>(
     // Draw
     let mut y = p0.y;
     while y <= p2.y {
-        let mut x = x_left[(y - p0.y) as usize] as i32;
+        let i = ((y - p0.y) as usize).min(x_left.len() - 1);
+        let i2 = ((y - p0.y) as usize).min(x_right.len() - 1);
+        // let mut x = x_left[(y - p0.y) as usize] as i32;
+        let mut x = x_left[i] as i32;
         loop {
-            if x > x_right[(y - p0.y) as usize] as i32 {
+            // if x > x_right[(y - p0.y) as usize] as i32 {
+            //     break;
+            // }
+            if x > x_right[i2] as i32 {
                 break;
             }
 
@@ -460,7 +466,7 @@ where
 
     let mut i = 0;
     for t in model.triangles() {
-        draw_triangle(
+        draw_wireframe_triangle(
             canvas,
             projected[i].into(),
             projected[i + 1].into(),

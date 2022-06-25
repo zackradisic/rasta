@@ -10,7 +10,7 @@ use crate::{
         draw_line, draw_line_broken, draw_shaded_line, draw_shaded_triangle, draw_triangle,
         draw_wireframe_triangle, render_instance, render_model,
     },
-    math::{Mat4, Vec3},
+    math::{Degrees, Mat4, Vec3},
     object::{Cube, Instance, Triangle},
     rasterize::{Color, Point},
     sdl_canvas::SDLCanvas,
@@ -85,21 +85,15 @@ pub fn main() -> Result<(), String> {
     // );
 
     let cube = Cube::new(
-        (-2.0 + 2.0, 0.5, 5.0).into(),
-        (-2.0 + 2.0, -0.5, 5.0).into(),
-        (-1.0 + 2.0, -0.5, 5.0).into(),
-        (-1.0 + 2.0, 0.5, 5.0).into(),
-        (-2.0 + 2.0, 0.5, 6.0).into(),
-        (-2.0 + 2.0, -0.5, 6.0).into(),
-        (-1.0 + 2.0, -0.5, 6.0).into(),
-        (-1.0 + 2.0, 0.5, 6.0).into(),
+        (-0.5, 0.5, -0.5).into(),
+        (-0.5, -0.5, -0.5).into(),
+        (0.5, -0.5, -0.5).into(),
+        (0.5, 0.5, -0.5).into(),
+        (-0.5, 0.5, 0.5).into(),
+        (-0.5, -0.5, 0.5).into(),
+        (0.5, -0.5, 0.5).into(),
+        (0.5, 0.5, 0.5).into(),
         [
-            // Color(255, 0, 0),
-            // Color(0, 255, 0),
-            // Color(0, 0, 255),
-            // Color(255, 255, 0),
-            // Color(0, 255, 255),
-            // Color(255, 0, 255),
             Color(255, 0, 0),
             Color(255, 0, 0),
             Color(255, 0, 0),
@@ -109,7 +103,7 @@ pub fn main() -> Result<(), String> {
         ],
     );
 
-    let instances = vec![
+    let mut instances = vec![
         Instance::new(&cube).pos((-2.0, 0.0, 0.0).into()).build(),
         Instance::new(&cube).pos((1.0, 0.0, 0.0).into()).build(),
     ];
@@ -214,7 +208,10 @@ pub fn main() -> Result<(), String> {
         );
         // render_model(&mut sdl_canvas, &cube, &view_projection);
 
-        for i in instances.iter() {
+        for i in instances.iter_mut() {
+            i.set_rotation(Degrees((t as f32 / 60.0) * 15.0));
+            i.set_pos(i.pos() + Vec3(0.0, (t as f32 / 20.0).sin() * 0.01, 0.0));
+            i.update_transform_matrix();
             render_instance(&mut sdl_canvas, i, &view_projection)
         }
         // draw_cube_wireframe_obj(&mut sdl_canvas, &cube, (1.0, aspect), 1.0);

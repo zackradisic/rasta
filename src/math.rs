@@ -86,6 +86,23 @@ impl<T: Sub<Output = T> + Copy> Sub for &Vec3<T> {
     }
 }
 
+impl<T: Add<Output = T> + Copy> Add<Vec3<T>> for Vec3<T> {
+    type Output = Vec3<T>;
+
+    fn add(self, rhs: Vec3<T>) -> Self::Output {
+        &self + &rhs
+    }
+}
+
+
+impl<T: Add<Output = T> + Copy> Add<Vec3<T>> for &Vec3<T> {
+    type Output = Vec3<T>;
+
+    fn add(self, rhs: Vec3<T>) -> Self::Output {
+        self + &rhs
+    }
+}
+
 impl<T: Add<Output = T> + Copy> Add for &Vec3<T> {
     type Output = Vec3<T>;
 
@@ -225,6 +242,14 @@ impl Radians {
 impl From<Degrees> for Radians {
     fn from(d: Degrees) -> Self {
         d.into_radians()
+    }
+}
+
+impl Add for Radians {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self(self.0 + rhs.0)
     }
 }
 
