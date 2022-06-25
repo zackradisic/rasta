@@ -212,7 +212,15 @@ impl Degrees {
         Radians(self.0 * (PI / 180.0))
     }
 }
+
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Radians(f32);
+
+impl Radians {
+    pub fn new(val: f32) -> Self {
+        Self(val)
+    }
+}
 
 impl From<Degrees> for Radians {
     fn from(d: Degrees) -> Self {
@@ -328,7 +336,98 @@ impl<T> Mat4<T> {
     }
 }
 
+impl<T: Mul<Output = T> + Add<Output = T> + Sub<Output = T> + Copy> Mat4<T> {
+    pub fn det(&self) -> T {
+        let b00 = self[(0, 0)] * self[(1, 1)] - self[(0, 1)] * self[(1, 0)];
+        let b01 = self[(0, 0)] * self[(1, 2)] - self[(0, 2)] * self[(1, 0)];
+        let b02 = self[(0, 0)] * self[(1, 3)] - self[(0, 3)] * self[(1, 0)];
+        let b03 = self[(0, 1)] * self[(1, 2)] - self[(0, 2)] * self[(1, 1)];
+        let b04 = self[(0, 1)] * self[(1, 3)] - self[(0, 3)] * self[(1, 1)];
+        let b05 = self[(0, 2)] * self[(1, 3)] - self[(0, 3)] * self[(1, 2)];
+        let b06 = self[(2, 0)] * self[(3, 1)] - self[(2, 1)] * self[(3, 0)];
+        let b07 = self[(2, 0)] * self[(3, 2)] - self[(2, 2)] * self[(3, 0)];
+        let b08 = self[(2, 0)] * self[(3, 3)] - self[(2, 3)] * self[(3, 0)];
+        let b09 = self[(2, 1)] * self[(3, 2)] - self[(2, 2)] * self[(3, 1)];
+        let b10 = self[(2, 1)] * self[(3, 3)] - self[(2, 3)] * self[(3, 1)];
+        let b11 = self[(2, 2)] * self[(3, 3)] - self[(2, 3)] * self[(3, 2)];
+        let det = b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06;
+        det
+    }
+}
+
 impl Mat4<f32> {
+    #[rustfmt::skip]
+    pub fn invert(&self) -> Option<Mat4<f32>> {
+        let det = self.det();
+        if det == 0.0 {
+            return None;
+        }
+
+        let a00 = self[(0, 0)];
+        let a01 = self[(0, 1)];
+        let a02 = self[(0, 2)];
+        let a03 = self[(0, 3)];
+        let a10 = self[(1, 0)];
+        let a11 = self[(1, 1)];
+        let a12 = self[(1, 2)];
+        let a13 = self[(1, 3)];
+        let a20 = self[(2, 0)];
+        let a21 = self[(2, 1)];
+        let a22 = self[(2, 2)];
+        let a23 = self[(2, 3)];
+        let a30 = self[(3, 0)];
+        let a31 = self[(3, 1)];
+        let a32 = self[(3, 2)];
+        let a33 = self[(3, 3)];
+        let b00 = self[(0, 0)] * self[(1, 1)] - self[(0, 1)] * self[(1, 0)];
+        let b01 = self[(0, 0)] * self[(1, 2)] - self[(0, 2)] * self[(1, 0)];
+        let b02 = self[(0, 0)] * self[(1, 3)] - self[(0, 3)] * self[(1, 0)];
+        let b03 = self[(0, 1)] * self[(1, 2)] - self[(0, 2)] * self[(1, 1)];
+        let b04 = self[(0, 1)] * self[(1, 3)] - self[(0, 3)] * self[(1, 1)];
+        let b05 = self[(0, 2)] * self[(1, 3)] - self[(0, 3)] * self[(1, 2)];
+        let b06 = self[(2, 0)] * self[(3, 1)] - self[(2, 1)] * self[(3, 0)];
+        let b07 = self[(2, 0)] * self[(3, 2)] - self[(2, 2)] * self[(3, 0)];
+        let b08 = self[(2, 0)] * self[(3, 3)] - self[(2, 3)] * self[(3, 0)];
+        let b09 = self[(2, 1)] * self[(3, 2)] - self[(2, 2)] * self[(3, 1)];
+        let b10 = self[(2, 1)] * self[(3, 3)] - self[(2, 3)] * self[(3, 1)];
+        let b11 = self[(2, 2)] * self[(3, 3)] - self[(2, 3)] * self[(3, 2)];
+
+        Some(Mat4::new(
+            // row 0
+            a11 * b11 - a12 * b10 + a13 * b09,
+            a02 * b10 - a01 * b11 - a03 * b09,
+            a31 * b05 - a32 * b04 + a33 * b03,
+            a22 * b04 - a21 * b05 - a23 * b03,
+            // row 1
+            a12 * b08 - a10 * b11 - a13 * b07,
+            a00 * b11 - a02 * b08 + a03 * b07,
+            a32 * b02 - a30 * b05 - a33 * b01,
+            a20 * b05 - a22 * b02 + a23 * b01,
+            // row 2
+            a10 * b10 - a11 * b08 + a13 * b06,
+            a01 * b08 - a00 * b10 - a03 * b06,
+            a30 * b04 - a31 * b02 + a33 * b00,
+            a21 * b02 - a20 * b04 - a23 * b00,
+            // row 3
+            a11 * b07 - a10 * b09 - a12 * b06,
+            a00 * b09 - a01 * b07 + a02 * b06,
+            a31 * b01 - a30 * b03 - a32 * b00,
+            a20 * b03 - a21 * b01 + a22 * b00
+        ) * (1.0/det))
+    }
+}
+
+impl Mat4<f32> {
+    #[rustfmt::skip]
+    pub fn scale(scale: Vec3<f32>) -> Self {
+        Mat4::new(
+            scale.0,     0.0,     0.0, 0.0,
+                0.0, scale.1,     0.0, 0.0,
+                0.0,     0.0, scale.2, 0.0,
+                0.0,     0.0,     0.0, 1.0,
+        )
+    }
+
     #[rustfmt::skip]
     pub fn translate(translation: Vec3<f32>) -> Self {
         Mat4::new(
@@ -371,6 +470,53 @@ impl Mat4<f32> {
         );
 
         translate_back * rotation_matrix * translate_to_origin
+    }
+
+    // #[rustfmt::skip]
+    pub fn perspective(right: f32, left: f32, bot: f32, top: f32, near: f32, far: f32) -> Self {
+        let m00 = (2.0 * near)/(right - left);
+        let m02 = -(right + left)/(right - left);
+        let m11 = (2.0 * near) / (bot - top);
+        let m12 = -(bot+top)/(bot - top);
+        let m22 = far/(far - near);
+        let m23 = (-1.0 * far * near)/(far - near);
+        Mat4::new(
+            m00, 0.0, m02, 0.0, 
+            0.0, m11, m12, 0.0, 
+            0.0, 0.0, m22, m23, 
+            0.0, 0.0, 1.0, 0.0
+        )
+    }
+
+    // #[rustfmt::skip]
+    // pub fn projection(d: f32) -> Self {
+    //     Mat4::new(
+    //         d, 0.0, 0.0, 0.0, 
+    //         0.0, d, 0.0, 0.0, 
+    //         0.0, 0.0, 1.0, 0.0, 
+    //         0.0, 0.0, 0.0, 1.0
+    //     )
+    // }
+
+
+    #[rustfmt::skip]
+    pub fn viewport_to_canvas(cw: f32, ch: f32, vw: f32, vh: f32) -> Self {
+        Mat4::new(
+            cw/vw, 0.0, 0.0, 0.0, 
+            0.0, ch/vh, 0.0, 0.0, 
+            0.0, 0.0, 1.0, 0.0, 
+            0.0, 0.0, 0.0, 1.0
+        )
+    }
+
+    #[rustfmt::skip]
+    pub fn identity() -> Self {
+        Mat4::new(
+            1.0, 0.0, 0.0, 0.0, 
+            0.0, 1.0, 0.0, 0.0, 
+            0.0, 0.0, 1.0, 0.0, 
+            0.0, 0.0, 0.0, 1.0
+        )
     }
 }
 
@@ -443,7 +589,30 @@ impl<T: Mul<Output = T> + Copy> Mul<T> for Mat4<T> {
     }
 }
 
+impl<T: PartialEq> PartialEq for Mat4<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+
+
 impl<T: Mul<Output = T> + Add<Output = T> + Copy> Mul<Mat4<T>> for Mat4<T> {
+    type Output = Mat4<T>;
+
+    fn mul(self, rhs: Mat4<T>) -> Self::Output {
+        &self * &rhs
+    }
+}
+
+impl<T: Mul<Output = T> + Add<Output = T> + Copy> Mul<&Mat4<T>> for Mat4<T> {
+    type Output = Mat4<T>;
+
+    fn mul(self, rhs: &Mat4<T>) -> Self::Output {
+        &self * rhs
+    }
+}
+
+impl<T: Mul<Output = T> + Add<Output = T> + Copy> Mul<Mat4<T>> for &Mat4<T> {
     type Output = Mat4<T>;
 
     fn mul(self, rhs: Mat4<T>) -> Self::Output {
@@ -451,7 +620,7 @@ impl<T: Mul<Output = T> + Add<Output = T> + Copy> Mul<Mat4<T>> for Mat4<T> {
     }
 }
 
-impl<T: Mul<Output = T> + Add<Output = T> + Copy> Mul<&Mat4<T>> for Mat4<T> {
+impl<T: Mul<Output = T> + Add<Output = T> + Copy> Mul<&Mat4<T>> for &Mat4<T> {
     type Output = Mat4<T>;
 
     fn mul(self, rhs: &Mat4<T>) -> Self::Output {
@@ -508,5 +677,36 @@ mod test {
             translate_to_origin.row(0),
             translate_back.col(0)
         );
+    }
+
+    #[test]
+    fn invert1() {
+        let data = vec![
+            // translation
+            (
+                Mat4::translate(Vec3(1.0, 1.0, 1.0)).invert(),
+                Mat4::translate(&Vec3(1.0, 1.0, 1.0) * -1.0),
+            ),
+            // scale
+            (
+                Mat4::scale(Vec3(420.0, 69.0, 999.0)).invert(),
+                // last is 1 / 999.0 but it evaluations to 0.001001001 (missing a 1 at the end)
+                Mat4::scale(Vec3(1.0 / 420.0, 1.0 / 69.0, 0.0010010011)),
+            ),
+        ];
+
+        for (inversion, expected) in data {
+            assert_eq!(inversion.unwrap(), expected)
+        }
+    }
+
+    #[test]
+    fn invert2() {
+        let translate = Mat4::translate(Vec3(1.0, 1.0, 1.0));
+        let inverse = translate.invert().unwrap();
+
+        let expected = Mat4::translate(&Vec3(1.0, 1.0, 1.0) * -1.0);
+
+        assert_eq!(inverse, expected)
     }
 }

@@ -8,10 +8,10 @@ use crate::{
     draw::{
         draw_animated_cube_wireframe, draw_cube, draw_cube_wireframe, draw_cube_wireframe_obj,
         draw_line, draw_line_broken, draw_shaded_line, draw_shaded_triangle, draw_triangle,
-        draw_wireframe_triangle,
+        draw_wireframe_triangle, render_instance, render_model,
     },
-    math::Vec3,
-    object::Cube,
+    math::{Mat4, Vec3},
+    object::{Cube, Instance, Triangle},
     rasterize::{Color, Point},
     sdl_canvas::SDLCanvas,
 };
@@ -71,28 +71,28 @@ pub fn main() -> Result<(), String> {
         }
     }
 
-    draw_shaded_line(
-        &mut sdl_canvas,
-        (Point::new(-50.0, -200.0), Color(0, 255, 0)),
-        (Point::new(60.0, 240.0), Color(0, 0, 255)),
-    );
+    // draw_shaded_line(
+    //     &mut sdl_canvas,
+    //     (Point::new(-50.0, -200.0), Color(0, 255, 0)),
+    //     (Point::new(60.0, 240.0), Color(0, 0, 255)),
+    // );
 
-    draw_shaded_triangle(
-        &mut sdl_canvas,
-        (Point::new(-400.0, -250.0), Color(255, 0, 0)),
-        (Point::new(0.0, 50.0), Color(0, 255, 0)),
-        (Point::new(-180.0, 250.0), Color(0, 0, 255)),
-    );
+    // draw_shaded_triangle(
+    //     &mut sdl_canvas,
+    //     (Point::new(-400.0, -250.0), Color(255, 0, 0)),
+    //     (Point::new(0.0, 50.0), Color(0, 255, 0)),
+    //     (Point::new(-180.0, 250.0), Color(0, 0, 255)),
+    // );
 
     let cube = Cube::new(
-        (-2.0, 0.5, 5.0).into(),
-        (-2.0, -0.5, 5.0).into(),
-        (-1.0, -0.5, 5.0).into(),
-        (-1.0, 0.5, 5.0).into(),
-        (-2.0, 0.5, 6.0).into(),
-        (-2.0, -0.5, 6.0).into(),
-        (-1.0, -0.5, 6.0).into(),
-        (-1.0, 0.5, 6.0).into(),
+        (-2.0 + 2.0, 0.5, 5.0).into(),
+        (-2.0 + 2.0, -0.5, 5.0).into(),
+        (-1.0 + 2.0, -0.5, 5.0).into(),
+        (-1.0 + 2.0, 0.5, 5.0).into(),
+        (-2.0 + 2.0, 0.5, 6.0).into(),
+        (-2.0 + 2.0, -0.5, 6.0).into(),
+        (-1.0 + 2.0, -0.5, 6.0).into(),
+        (-1.0 + 2.0, 0.5, 6.0).into(),
         [
             // Color(255, 0, 0),
             // Color(0, 255, 0),
@@ -109,6 +109,23 @@ pub fn main() -> Result<(), String> {
         ],
     );
 
+    let instances = vec![
+        Instance::new(&cube).pos((-2.0, 0.0, 0.0).into()).build(),
+        Instance::new(&cube).pos((1.0, 0.0, 0.0).into()).build(),
+    ];
+
+    let aspect = sdl_canvas.height() as f32 / sdl_canvas.width() as f32;
+    let camera_translation = Mat4::translate(Vec3(0.0, 0.0, -15.0));
+    let camera_rotation = Mat4::identity();
+    let projection = Mat4::perspective(-1.0, 1.0, -aspect, aspect, 1.0, 10.0);
+    let viewport_to_canvas = Mat4::viewport_to_canvas(
+        sdl_canvas.width() as f32,
+        sdl_canvas.height() as f32,
+        1.0,
+        1.0,
+    );
+    let view_projection = viewport_to_canvas * projection * camera_translation * camera_rotation;
+
     let mut t = 0;
     'running: loop {
         for event in event_pump.poll_iter() {
@@ -124,24 +141,6 @@ pub fn main() -> Result<(), String> {
         sdl_canvas.clear(Color(21, 20, 28));
 
         let aspect = sdl_canvas.height() as f32 / sdl_canvas.width() as f32;
-        // let x_t = (t as f32 / 60.0) * 1.0;
-        // draw_cube_wireframe(
-        //     &mut sdl_canvas,
-        //     [
-        //         (-2.0 + x_t, -0.5, 5.0).into(),
-        //         (-2.0 + x_t, 0.5, 5.0).into(),
-        //         (-1.0 + x_t, 0.5, 5.0).into(),
-        //         (-1.0 + x_t, -0.5, 5.0).into(),
-        //     ],
-        //     [
-        //         (-2.0 + x_t, -0.5, 6.0).into(),
-        //         (-2.0 + x_t, 0.5, 6.0).into(),
-        //         (-1.0 + x_t, 0.5, 6.0).into(),
-        //         (-1.0 + x_t, -0.5, 6.0).into(),
-        //     ],
-        //     (1.0, aspect),
-        //     1.0,
-        // );
 
         draw_animated_cube_wireframe(
             &mut sdl_canvas,
@@ -163,47 +162,62 @@ pub fn main() -> Result<(), String> {
             Vec3(-1.5, 0.0, 5.5),
         );
 
-        draw_animated_cube_wireframe(
-            &mut sdl_canvas,
-            [
-                (-2.0 + 0.2, -0.5, 5.0 + 10.0).into(),
-                (-2.0 + 0.2, 0.5, 5.0 + 10.0).into(),
-                (-1.0 + 0.2, 0.5, 5.0 + 10.0).into(),
-                (-1.0 + 0.2, -0.5, 5.0 + 10.0).into(),
-            ],
-            [
-                (-2.0 + 0.2, -0.5, 6.0 + 10.0).into(),
-                (-2.0 + 0.2, 0.5, 6.0 + 10.0).into(),
-                (-1.0 + 0.2, 0.5, 6.0 + 10.0).into(),
-                (-1.0 + 0.2, -0.5, 6.0 + 10.0).into(),
-            ],
-            (1.0, aspect),
-            1.0,
-            t,
-            Vec3(-1.5 + 0.2, 0.0, 5.5 + 10.0),
-        );
+        // draw_animated_cube_wireframe(
+        //     &mut sdl_canvas,
+        //     [
+        //         (-2.0 + 0.2, -0.5, 5.0 + 10.0).into(),
+        //         (-2.0 + 0.2, 0.5, 5.0 + 10.0).into(),
+        //         (-1.0 + 0.2, 0.5, 5.0 + 10.0).into(),
+        //         (-1.0 + 0.2, -0.5, 5.0 + 10.0).into(),
+        //     ],
+        //     [
+        //         (-2.0 + 0.2, -0.5, 6.0 + 10.0).into(),
+        //         (-2.0 + 0.2, 0.5, 6.0 + 10.0).into(),
+        //         (-1.0 + 0.2, 0.5, 6.0 + 10.0).into(),
+        //         (-1.0 + 0.2, -0.5, 6.0 + 10.0).into(),
+        //     ],
+        //     (1.0, aspect),
+        //     1.0,
+        //     t,
+        //     Vec3(-1.5 + 0.2, 0.0, 5.5 + 10.0),
+        // );
 
-        draw_animated_cube_wireframe(
-            &mut sdl_canvas,
-            [
-                (-2.0 + 2.0, -0.5, 5.0 + 2.5).into(),
-                (-2.0 + 2.0, 0.5, 5.0 + 2.5).into(),
-                (-1.0 + 2.0, 0.5, 5.0 + 2.5).into(),
-                (-1.0 + 2.0, -0.5, 5.0 + 2.5).into(),
-            ],
-            [
-                (-2.0 + 2.0, -0.5, 6.0 + 2.5).into(),
-                (-2.0 + 2.0, 0.5, 6.0 + 2.5).into(),
-                (-1.0 + 2.0, 0.5, 6.0 + 2.5).into(),
-                (-1.0 + 2.0, -0.5, 6.0 + 2.5).into(),
-            ],
-            (1.0, aspect),
-            1.0,
-            t,
-            Vec3(-1.5 + 2.0, 0.0, 5.5 + 2.5),
-        );
+        // draw_animated_cube_wireframe(
+        //     &mut sdl_canvas,
+        //     [
+        //         (-2.0 + 2.0, -0.5, 5.0 + 2.5).into(),
+        //         (-2.0 + 2.0, 0.5, 5.0 + 2.5).into(),
+        //         (-1.0 + 2.0, 0.5, 5.0 + 2.5).into(),
+        //         (-1.0 + 2.0, -0.5, 5.0 + 2.5).into(),
+        //     ],
+        //     [
+        //         (-2.0 + 2.0, -0.5, 6.0 + 2.5).into(),
+        //         (-2.0 + 2.0, 0.5, 6.0 + 2.5).into(),
+        //         (-1.0 + 2.0, 0.5, 6.0 + 2.5).into(),
+        //         (-1.0 + 2.0, -0.5, 6.0 + 2.5).into(),
+        //     ],
+        //     (1.0, aspect),
+        //     1.0,
+        //     t,
+        //     Vec3(-1.5 + 2.0, 0.0, 5.5 + 2.5),
+        // );
 
-        draw_cube_wireframe_obj(&mut sdl_canvas, &cube, (1.0, aspect), 1.0);
+        render_model(
+            &mut sdl_canvas,
+            &Triangle {
+                p0: (0.0, 0.0, 5.0).into(),
+                p1: (1.0, 0.0, 5.0).into(),
+                p2: (1.0, 1.0, 5.0).into(),
+                color: Color(255, 0, 0),
+            },
+            &view_projection,
+        );
+        // render_model(&mut sdl_canvas, &cube, &view_projection);
+
+        for i in instances.iter() {
+            render_instance(&mut sdl_canvas, i, &view_projection)
+        }
+        // draw_cube_wireframe_obj(&mut sdl_canvas, &cube, (1.0, aspect), 1.0);
 
         sdl_canvas.draw();
         t += 1;

@@ -3,7 +3,7 @@ use std::ops::{Div, Mul};
 use crate::{
     canvas::Canvas,
     math::{Degrees, Mat4, Vec2, Vec3, Vec4},
-    object::Cube,
+    object::{Cube, Instance, Model},
     rasterize::{Color, Point},
 };
 
@@ -431,5 +431,49 @@ pub fn draw_cube_wireframe_obj<C: Canvas>(
             project_vertex(triangle.p2.clone(), d, cw, ch, vw, vh).into(),
             triangle.color,
         )
+    }
+}
+
+pub fn render_instance<'a, C: Canvas, M: Model<'a>>(
+    canvas: &mut C,
+    instance: &Instance<'a, M>,
+    view_proj: &Mat4<f32>,
+) {
+    let instance_matrix = &instance.transform_matrix;
+    render_model(canvas, instance.model, &(view_proj * instance_matrix));
+}
+
+pub fn render_model<'a, C, M>(canvas: &mut C, model: &'a M, transform_matrix: &Mat4<f32>)
+where
+    C: Canvas,
+    M: Model<'a>,
+{
+    let mut projected = vec![];
+    for v in model.vertices() {
+        let projected_vertex = transform_matrix * Vec4(v.0, v.1, v.2, 1.0);
+        // println!("PROJECTED: {:?}", projected_vertex);
+        projected.push(Point {
+            x: projected_vertex.0 / projected_vertex.3,
+            y: projected_vertex.1 / projected_vertex.3,
+        });
+    }
+
+    let mut i = 0;
+    for t in model.triangles() {
+        draw_triangle(
+            canvas,
+            projected[i].into(),
+            projected[i + 1].into(),
+            projected[i + 2].into(),
+            t.color,
+        );
+        // draw_triangle(
+        //     canvas,
+        //     projected[i].into(),
+        //     projected[i + 1].into(),
+        //     projected[i + 2].into(),
+        //     t.color,
+        // );
+        i += 3;
     }
 }
