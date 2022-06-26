@@ -5,3 +5,9 @@ pub enum Light {
     Directional(f32, Vec3<f32>),
     Point(f32, Vec3<f32>),
 }
+
+pub enum Shading {
+    Flat,
+    Gourad,
+    Phong,
+}

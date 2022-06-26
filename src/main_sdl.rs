@@ -88,14 +88,14 @@ pub fn main() -> Result<(), String> {
     );
 
     let mut instances = vec![
-        Instance::new(&cube).pos((-1.0, 0.0, 1.0).into()).build(),
-        Instance::new(&cube).pos((1.0, 0.0, 1.0).into()).build(),
+        Instance::new(&cube).pos((-1.0, 0.0, -2.0).into()).build(),
+        Instance::new(&cube).pos((1.0, 0.0, -2.0).into()).build(),
     ];
 
     let aspect = sdl_canvas.height() as f32 / sdl_canvas.width() as f32;
     let camera_translation = Mat4::translate(Vec3(0.0, 0.0, 5.0));
     let camera_rotation = Mat4::identity();
-    let perspective = Mat4::perspective(-1.0, 1.0, -aspect, aspect, 1.0, 100.0);
+    let perspective = Mat4::perspective(-1.0, 1.0, -aspect, aspect, 1.0, 1000.0);
     let viewport_to_canvas = Mat4::viewport_to_canvas(
         sdl_canvas.width() as f32,
         sdl_canvas.height() as f32,
@@ -212,8 +212,8 @@ pub fn main() -> Result<(), String> {
             if !paused {
                 let s = if c % 2 == 0 { -1.0 } else { 1.0 };
                 i.set_rotation(Degrees((t as f32 / 30.0) * 20.0 * s));
-                let delta = (t as f32 / 20.0).sin() * 0.01;
-                i.set_pos(i.pos() + Vec3(0.0, delta, -delta + delta));
+                let delta = (t as f32 / 20.0).sin() * 0.05;
+                i.set_pos(i.pos() + Vec3(0.0, delta, -delta));
             }
             i.update_transform_matrix();
             raster.render_instance(&mut sdl_canvas, i)

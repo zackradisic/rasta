@@ -1,6 +1,6 @@
 use crate::{
     canvas::{canvas_coords_to_screen_coords, Canvas, IntoPixelValue},
-    light::Light,
+    light::{Light, Shading},
     math::{Degrees, Mat4, Vec2, Vec3, Vec4},
     object::{Cube, Instance, Model, Triangle},
     rasterize::{Color, Point},
@@ -16,7 +16,8 @@ pub struct Rasterizer {
     pub view_projection_matrix: Mat4<f32>,
     pub view_matrix: Mat4<f32>,
     lights: Vec<Light>,
-    is_back: bool,
+    shading: Shading,
+    is_bottom: bool,
 }
 
 impl Rasterizer {
@@ -40,16 +41,18 @@ impl Rasterizer {
             view_projection_matrix: &projection_matrix * &view_matrix,
             view_matrix,
             lights,
-            is_back: false,
+            shading: Shading::Flat,
+            is_bottom: false,
         }
     }
 
-    pub fn should_cull(&self, t: &Triangle, center: Vec3<f32>) -> bool {
+    pub fn should_cull(&self, t: &Triangle, camera: Vec3<f32>) -> bool {
         let triangle_center = (&t.p0 + &t.p1 + &t.p2) * (1.0 / 3.0);
-        let center = center - triangle_center;
+        let center = &camera - &triangle_center;
         let normal = t.normal();
-        let angle = normal.angle(&(&center - &normal));
-        angle > 0.0
+        let angle = normal.angle(&center);
+
+        angle < 0.0
     }
 
     pub fn clear<C: Canvas>(&mut self, canvas: &mut C, color: Color) {
@@ -217,7 +220,7 @@ impl Rasterizer {
     }
 
     pub fn compute_illumination(center: Vec3<f32>, normal: Vec3<f32>, light: &Light) -> f32 {
-        let mut illumination = 0.2;
+        let mut illumination = 0.4;
         match light {
             Light::Ambient(_) => todo!(),
             Light::Directional(intensity, dir) => {
@@ -275,7 +278,6 @@ impl Rasterizer {
             std::mem::swap(&mut i1, &mut i2);
         }
         let (v0, v1, v2) = (&triangle[i0], &triangle[i1], &triangle[i2]);
-        // println!("v0 {:?} v1 {:?} v2 {:?}", v0, v1, v2);
 
         let (z0, z1, z2) = (
             1.0 / triangle[i0].2,
@@ -295,6 +297,15 @@ impl Rasterizer {
         let z12 = Self::interpolate(p1.y, z1, p2.y, z2);
         let z02 = Self::interpolate(p0.y, z0, p2.y, z2);
 
+        let light = Light::Directional(0.6, light_direction);
+
+        let i0 = Self::compute_illumination(v0.clone(), normal.clone(), &light);
+        let i1 = Self::compute_illumination(v1.clone(), normal.clone(), &light);
+        let i2 = Self::compute_illumination(v1.clone(), normal.clone(), &light);
+        let i01 = Self::interpolate(p0.y, i0, p1.y, i1);
+        let i12 = Self::interpolate(p1.y, i1, p2.y, i2);
+        let i02 = Self::interpolate(p0.y, i0, p2.y, i2);
+
         // Concatenate short sides
         let take_amount = x01.len() - 1;
         let x012: Vec<_> = x01
@@ -308,20 +319,22 @@ impl Rasterizer {
             .take(take_amount)
             .chain(z12.into_iter())
             .collect();
+        let take_amount = i01.len() - 1;
+        let i012: Vec<_> = i01
+            .into_iter()
+            .take(take_amount)
+            .chain(i12.into_iter())
+            .collect();
 
         // Determine which is left and which is right
         let m = x02.len() / 2;
-        let (x_left, x_right, z_left, z_right) = if x02[m] < x012[m] {
-            (x02, x012, z02, z012)
+        let (x_left, x_right, z_left, z_right, i_left, i_right) = if x02[m] < x012[m] {
+            (x02, x012, z02, z012, i02, i012)
         } else {
-            (x012, x02, z012, z02)
+            (x012, x02, z012, z02, i012, i02)
         };
 
-        let illumination = Self::compute_illumination(
-            (v0 + v1 + v2) / 3.0,
-            normal,
-            &Light::Directional(0.6, light_direction),
-        );
+        let illumination = Self::compute_illumination((v0 + v1 + v2) / 3.0, normal, &light);
 
         // Draw
         let mut y = p0.y;
@@ -330,10 +343,13 @@ impl Rasterizer {
             let (xl, xr) = (x_left[i], x_right[i]);
 
             let zscan = Self::interpolate(xl, z_left[i], xr, z_right[i]);
+            let iscan = Self::interpolate(xl, i_left[i], xr, i_right[i]);
 
             let mut x = xl;
             while x <= xr {
-                let illuminated_color = Color::from_vec3_f32s(&color.to_vec3_f32s() * illumination);
+                // let illuminated_color = Color::from_vec3_f32s(&color.to_vec3_f32s() * illumination);
+                let illuminated_color =
+                    Color::from_vec3_f32s(&color.to_vec3_f32s() * iscan[(x - xl) as usize]);
 
                 self.put_pixel(canvas, x, y, zscan[(x - xl) as usize], illuminated_color);
                 // self.put_pixel(canvas, x, y, zscan[(x - xl) as usize], color);
@@ -586,15 +602,16 @@ impl Rasterizer {
             projected.push(divide_by_w);
         }
 
-        let transformed_center = &self.view_matrix * Vec4(0.0, 0.0, 0.0, 1.0);
-        let light_direction = &self.view_matrix * Vec4(0.2, 0.0, 1.0, 0.0);
+        // let transformed_center = &self.view_matrix * Vec4(0.0, 0.0, 0.0, 1.0);
+        let transformed_center = Vec4(0.0, 0.0, 0.0, 1.0);
+        // let light_direction = &self.view_matrix * Vec4(0.6, -0.1, 1.0, 0.0);
+        let light_direction = Vec4(0.6, -0.1, 1.0, 0.0);
 
         let mut i = 0;
         for (c, t) in model.triangles().enumerate() {
-            if c > 1 && c < 4 {
-                self.is_back = true;
+            if c >= 10 {
+                self.is_bottom = true;
             }
-
             self.draw_triangle(
                 canvas,
                 Vec3(
@@ -610,7 +627,9 @@ impl Rasterizer {
                 projected[i + 2].into(),
                 t.color,
             );
-            self.is_back = false;
+            if c >= 10 {
+                self.is_bottom = false;
+            }
             i += 3;
         }
     }
