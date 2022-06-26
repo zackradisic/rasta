@@ -5,6 +5,7 @@ use wasm_bindgen::{prelude::*, JsCast};
 use crate::{
     canvas::Canvas,
     draw::Rasterizer,
+    light::Light,
     math::{Degrees, Mat4, Vec3},
     object::{Cube, Instance},
     rasterize::Color,
@@ -89,24 +90,31 @@ pub fn start() {
     let raf_cell = Rc::new(RefCell::new(None));
     let raf = raf_cell.clone();
     let t_cell = Rc::new(RefCell::new(0));
+
     let aspect = wasm_canvas.height() as f32 / wasm_canvas.width() as f32;
-    let camera_translation = Mat4::translate(Vec3(0.0, 0.0, -15.0));
+    let camera_translation = Mat4::translate(Vec3(0.0, 0.0, 5.0));
     let camera_rotation = Mat4::identity();
-    let projection = Mat4::perspective(-1.0, 1.0, -aspect, aspect, 1.0, 10.0);
+    let perspective = Mat4::perspective(-1.0, 1.0, -aspect, aspect, 1.0, 1000.0);
     let viewport_to_canvas = Mat4::viewport_to_canvas(
         wasm_canvas.width() as f32,
         wasm_canvas.height() as f32,
         1.0,
         1.0,
     );
-    let view_projection = viewport_to_canvas * projection * camera_translation * camera_rotation;
-    let raster = Rc::new(RefCell::new(Rasterizer::new(
+    let view_matrix = camera_translation.invert().unwrap() * camera_rotation.invert().unwrap();
+    let projection = viewport_to_canvas * perspective;
+    let mut raster = Rc::new(RefCell::new(Rasterizer::new(
         wasm_canvas.width() as f32,
         wasm_canvas.height() as f32,
         1.0,
         aspect,
         1.0,
-        view_projection,
+        view_matrix,
+        projection,
+        vec![
+            Light::Ambient(0.2),
+            Light::Directional(0.4, Vec3(0.0, 0.0, 1.0)),
+        ],
     )));
 
     let cube = Cube::new(
@@ -204,10 +212,10 @@ pub fn start() {
         // );
 
         for (c, i) in instances.iter_mut().enumerate() {
-            let s = if c % 2 == 0 { -1.0 } else { 1.0 };
+            let s = if c % 2 == 0 { 1.0 } else { 1.0 };
             i.set_rotation(Degrees((t as f32 / 30.0) * 20.0 * s));
-            let delta = (t as f32 / 20.0).sin() * 0.1;
-            i.set_pos(i.pos() + Vec3(0.0, delta, -delta));
+            let delta = (t as f32 / 120.0).sin() * 0.0045;
+            i.set_pos(i.pos() + Vec3(0.0, delta, -delta + delta));
             i.update_transform_matrix();
             raster.borrow_mut().render_instance(&mut wasm_canvas, i)
         }
