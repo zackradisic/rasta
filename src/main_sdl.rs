@@ -5,11 +5,7 @@ use sdl2::{event::Event, keyboard::Keycode, pixels::PixelFormatEnum};
 
 use crate::{
     canvas::Canvas,
-    draw::{
-        draw_animated_cube_wireframe, draw_cube, draw_cube_wireframe, draw_cube_wireframe_obj,
-        draw_line, draw_line_broken, draw_shaded_line, draw_shaded_triangle, draw_triangle,
-        draw_wireframe_triangle, render_instance, render_model,
-    },
+    draw::Rasterizer,
     math::{Degrees, Mat4, Vec3},
     object::{Cube, Instance, Triangle},
     rasterize::{Color, Point},
@@ -71,56 +67,53 @@ pub fn main() -> Result<(), String> {
         }
     }
 
-    // draw_shaded_line(
-    //     &mut sdl_canvas,
-    //     (Point::new(-50.0, -200.0), Color(0, 255, 0)),
-    //     (Point::new(60.0, 240.0), Color(0, 0, 255)),
-    // );
-
-    // draw_shaded_triangle(
-    //     &mut sdl_canvas,
-    //     (Point::new(-400.0, -250.0), Color(255, 0, 0)),
-    //     (Point::new(0.0, 50.0), Color(0, 255, 0)),
-    //     (Point::new(-180.0, 250.0), Color(0, 0, 255)),
-    // );
-
     let cube = Cube::new(
-        (-0.5, 0.5, -0.5).into(),
-        (-0.5, -0.5, -0.5).into(),
-        (0.5, -0.5, -0.5).into(),
-        (0.5, 0.5, -0.5).into(),
         (-0.5, 0.5, 0.5).into(),
         (-0.5, -0.5, 0.5).into(),
         (0.5, -0.5, 0.5).into(),
         (0.5, 0.5, 0.5).into(),
+        (-0.5, 0.5, -0.5).into(),
+        (-0.5, -0.5, -0.5).into(),
+        (0.5, -0.5, -0.5).into(),
+        (0.5, 0.5, -0.5).into(),
         [
             Color(255, 0, 0),
-            Color(255, 0, 0),
-            Color(255, 0, 0),
-            Color(255, 0, 0),
-            Color(255, 0, 0),
-            Color(255, 0, 0),
+            Color(0, 255, 0),
+            Color(0, 0, 255),
+            Color(255, 0, 255),
+            Color(255, 255, 0),
+            Color(0, 255, 255),
         ],
     );
 
     let mut instances = vec![
-        Instance::new(&cube).pos((-2.0, 0.0, 0.0).into()).build(),
+        Instance::new(&cube).pos((-1.0, 0.0, 0.0).into()).build(),
         Instance::new(&cube).pos((1.0, 0.0, 0.0).into()).build(),
     ];
 
     let aspect = sdl_canvas.height() as f32 / sdl_canvas.width() as f32;
-    let camera_translation = Mat4::translate(Vec3(0.0, 0.0, -15.0));
+    let camera_translation = Mat4::translate(Vec3(0.0, 0.0, 5.0));
     let camera_rotation = Mat4::identity();
-    let projection = Mat4::perspective(-1.0, 1.0, -aspect, aspect, 1.0, 10.0);
+    let projection = Mat4::perspective(-1.0, 1.0, -aspect, aspect, 1.0, 100.0);
     let viewport_to_canvas = Mat4::viewport_to_canvas(
         sdl_canvas.width() as f32,
         sdl_canvas.height() as f32,
         1.0,
         1.0,
     );
-    let view_projection = viewport_to_canvas * projection * camera_translation * camera_rotation;
+    let view_projection =
+        viewport_to_canvas * projection * camera_translation.invert().unwrap() * camera_rotation;
+    let mut raster = Rasterizer::new(
+        sdl_canvas.width() as f32,
+        sdl_canvas.height() as f32,
+        1.0,
+        aspect,
+        1.0,
+        view_projection,
+    );
 
     let mut t = 0;
+    let mut paused = false;
     'running: loop {
         for event in event_pump.poll_iter() {
             match event {
@@ -129,32 +122,34 @@ pub fn main() -> Result<(), String> {
                     keycode: Some(Keycode::Escape),
                     ..
                 } => break 'running,
+                Event::KeyDown {
+                    keycode: Some(Keycode::Space),
+                    ..
+                } => {
+                    paused = !paused;
+                }
                 _ => {}
             }
         }
-        sdl_canvas.clear(Color(21, 20, 28));
+        raster.clear(&mut sdl_canvas, Color(21, 20, 28));
 
-        let aspect = sdl_canvas.height() as f32 / sdl_canvas.width() as f32;
-
-        draw_animated_cube_wireframe(
-            &mut sdl_canvas,
-            [
-                (-2.0, -0.5, 5.0).into(),
-                (-2.0, 0.5, 5.0).into(),
-                (-1.0, 0.5, 5.0).into(),
-                (-1.0, -0.5, 5.0).into(),
-            ],
-            [
-                (-2.0, -0.5, 6.0).into(),
-                (-2.0, 0.5, 6.0).into(),
-                (-1.0, 0.5, 6.0).into(),
-                (-1.0, -0.5, 6.0).into(),
-            ],
-            (1.0, aspect),
-            01.0,
-            t,
-            Vec3(-1.5, 0.0, 5.5),
-        );
+        // raster.draw_animated_cube_wireframe(
+        //     &mut sdl_canvas,
+        //     [
+        //         (-2.0, -0.5, 5.0).into(),
+        //         (-2.0, 0.5, 5.0).into(),
+        //         (-1.0, 0.5, 5.0).into(),
+        //         (-1.0, -0.5, 5.0).into(),
+        //     ],
+        //     [
+        //         (-2.0, -0.5, 6.0).into(),
+        //         (-2.0, 0.5, 6.0).into(),
+        //         (-1.0, 0.5, 6.0).into(),
+        //         (-1.0, -0.5, 6.0).into(),
+        //     ],
+        //     t,
+        //     Vec3(-1.5, 0.0, 5.5),
+        // );
 
         // draw_animated_cube_wireframe(
         //     &mut sdl_canvas,
@@ -196,28 +191,34 @@ pub fn main() -> Result<(), String> {
         //     Vec3(-1.5 + 2.0, 0.0, 5.5 + 2.5),
         // );
 
-        render_model(
-            &mut sdl_canvas,
-            &Triangle {
-                p0: (0.0, 0.0, 5.0).into(),
-                p1: (1.0, 0.0, 5.0).into(),
-                p2: (1.0, 1.0, 5.0).into(),
-                color: Color(255, 0, 0),
-            },
-            &view_projection,
-        );
-        // render_model(&mut sdl_canvas, &cube, &view_projection);
+        // raster.render_model(
+        //     &mut sdl_canvas,
+        //     &Triangle {
+        //         p0: (0.0, 0.0, -1.0).into(),
+        //         p1: (1.0, 0.0, -1.0).into(),
+        //         p2: (1.0, 1.0, -1.0).into(),
+        //         color: Color(255, 0, 0),
+        //     },
+        //     &Mat4::identity(),
+        // );
 
-        for i in instances.iter_mut() {
-            i.set_rotation(Degrees((t as f32 / 60.0) * 15.0));
-            i.set_pos(i.pos() + Vec3(0.0, (t as f32 / 20.0).sin() * 0.01, 0.0));
+        for (c, i) in instances.iter_mut().enumerate() {
+            if !paused {
+                let s = if c % 2 == 0 { -1.0 } else { 1.0 };
+                i.set_rotation(Degrees((t as f32 / 30.0) * 20.0 * s));
+                let delta = (t as f32 / 20.0).sin() * 0.01;
+                i.set_pos(i.pos() + Vec3(0.0, delta, -delta + delta));
+            }
             i.update_transform_matrix();
-            render_instance(&mut sdl_canvas, i, &view_projection)
+            raster.render_instance(&mut sdl_canvas, i)
         }
+
         // draw_cube_wireframe_obj(&mut sdl_canvas, &cube, (1.0, aspect), 1.0);
 
         sdl_canvas.draw();
-        t += 1;
+        if !paused {
+            t += 1;
+        }
         std::thread::sleep(time::Duration::from_millis(16));
     }
 

@@ -1,10 +1,11 @@
 use std::{
     iter::{Flatten, Map},
+    ops::Index,
     slice::Iter,
 };
 
 use crate::{
-    math::{Mat4, Radians, Vec3},
+    math::{Mat4, Radians, Vec3, Vec4},
     rasterize::Color,
 };
 
@@ -133,7 +134,7 @@ pub struct ModelOptions {
     pub wireframe: bool,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Triangle {
     pub p0: Vec3<f32>,
     pub p1: Vec3<f32>,
@@ -144,6 +145,37 @@ pub struct Triangle {
 impl Triangle {
     pub fn new(p0: Vec3<f32>, p1: Vec3<f32>, p2: Vec3<f32>, color: Color) -> Self {
         Self { p0, p1, p2, color }
+    }
+
+    pub fn transform(&self, m: &Mat4<f32>) -> Self {
+        let p0 = m * Vec4(self.p0.0, self.p0.1, self.p0.2, 1.0);
+        let p1 = m * Vec4(self.p1.0, self.p1.1, self.p1.2, 1.0);
+        let p2 = m * Vec4(self.p2.0, self.p2.1, self.p2.2, 1.0);
+        Self {
+            p0: Vec3(p0.0, p0.1, p0.2),
+            p1: Vec3(p1.0, p1.1, p1.2),
+            p2: Vec3(p2.0, p2.1, p2.2),
+            color: self.color,
+        }
+    }
+
+    pub fn normal(&self) -> Vec3<f32> {
+        let v1 = &self.p1 - &self.p0;
+        let v2 = &self.p2 - &self.p0;
+        v1.cross(&v2)
+    }
+}
+
+impl Index<u8> for Triangle {
+    type Output = Vec3<f32>;
+
+    fn index(&self, index: u8) -> &Self::Output {
+        match index {
+            0 => &self.p0,
+            1 => &self.p1,
+            2 => &self.p2,
+            otherwise => panic!("Invalid triangle vertex index: {}", otherwise),
+        }
     }
 }
 
@@ -245,8 +277,8 @@ impl Cube {
             Triangle::new(btl.clone(), bbl.clone(), bbr.clone(), back),
             Triangle::new(btr.clone(), btl.clone(), bbr.clone(), back),
             // left side
-            Triangle::new(ftl.clone(), fbl.clone(), bbl.clone(), left),
-            Triangle::new(bbl.clone(), btl.clone(), ftl.clone(), left),
+            Triangle::new(ftl.clone(), bbl.clone(), fbl.clone(), left),
+            Triangle::new(btl.clone(), bbl.clone(), ftl.clone(), left),
             // right side
             Triangle::new(ftr.clone(), fbr.clone(), bbr.clone(), right),
             Triangle::new(bbr.clone(), btr.clone(), ftr.clone(), right),
@@ -254,8 +286,8 @@ impl Cube {
             Triangle::new(ftl.clone(), ftr.clone(), btr.clone(), top),
             Triangle::new(btr.clone(), btl.clone(), ftl.clone(), top),
             // bot
-            Triangle::new(fbl.clone(), fbr.clone(), bbr.clone(), bottom),
-            Triangle::new(bbr.clone(), bbl.clone(), fbl.clone(), bottom),
+            Triangle::new(fbr.clone(), fbl.clone(), bbr.clone(), bottom),
+            Triangle::new(bbl.clone(), bbr.clone(), fbl.clone(), bottom),
         ]
     }
 }

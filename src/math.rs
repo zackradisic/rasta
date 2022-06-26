@@ -56,11 +56,29 @@ impl<T: Div<Output = T> + Copy> Div<T> for Vec2<T> {
 
 pub struct Vec3<T>(pub T, pub T, pub T);
 
-impl<T: Mul<Output = T> + Add<Output = T> + Copy> Vec3<T> {
+impl Vec3<f32> {
+    pub fn magnitude(&self) -> f32 {
+        (self.0.powi(2) + self.1.powi(2) + self.2.powi(2)).sqrt()
+    }
+    
+    pub fn angle(&self, rhs: &Vec3<f32>) -> f32 {
+        self.dot(rhs) / (self.magnitude() * rhs.magnitude())
+    }
+}
+
+impl<T: Mul<Output = T> + Add<Output = T>  + Copy> Vec3<T> {
     pub fn dot(&self, rhs: &Vec3<T>) -> T {
         self.0 * rhs.0 + self.1 * rhs.1 + self.2 * rhs.2
     }
+    
 }
+
+impl<T: Mul<Output = T> + Add<Output = T>  + Sub<Output = T> + Copy> Vec3<T> {
+    pub fn cross(&self, rhs: &Vec3<T>) -> Vec3<T> {
+        Vec3(self.1*rhs.2 - self.2*rhs.1, self.2*rhs.0 - self.0*rhs.2, self.0*rhs.1 - self.1*rhs.0)
+    }
+}
+
 
 impl<T: Debug> Debug for Vec3<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -75,6 +93,14 @@ impl<T: Debug> Debug for Vec3<T> {
 impl<T: Clone> Clone for Vec3<T> {
     fn clone(&self) -> Self {
         Self(self.0.clone(), self.1.clone(), self.2.clone())
+    }
+}
+
+impl<T: Sub<Output = T> + Copy> Sub for Vec3<T> {
+    type Output = Vec3<T>;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        &self - &rhs
     }
 }
 

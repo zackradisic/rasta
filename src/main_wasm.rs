@@ -4,13 +4,11 @@ use wasm_bindgen::{prelude::*, JsCast};
 
 use crate::{
     canvas::Canvas,
-    draw::{
-        draw_animated_cube_wireframe, draw_cube_wireframe, draw_line, draw_shaded_line,
-        draw_shaded_triangle, draw_triangle,
-    },
-    math::Vec3,
-    rasterize::{Color, Point},
-    wasm_canvas::{self, WasmCanvas},
+    draw::Rasterizer,
+    math::{Degrees, Mat4, Vec3},
+    object::{Cube, Instance},
+    rasterize::Color,
+    wasm_canvas::WasmCanvas,
 };
 
 fn request_animation_frame(f: &Closure<dyn FnMut()>) {
@@ -91,70 +89,128 @@ pub fn start() {
     let raf_cell = Rc::new(RefCell::new(None));
     let raf = raf_cell.clone();
     let t_cell = Rc::new(RefCell::new(0));
+    let aspect = wasm_canvas.height() as f32 / wasm_canvas.width() as f32;
+    let camera_translation = Mat4::translate(Vec3(0.0, 0.0, -15.0));
+    let camera_rotation = Mat4::identity();
+    let projection = Mat4::perspective(-1.0, 1.0, -aspect, aspect, 1.0, 10.0);
+    let viewport_to_canvas = Mat4::viewport_to_canvas(
+        wasm_canvas.width() as f32,
+        wasm_canvas.height() as f32,
+        1.0,
+        1.0,
+    );
+    let view_projection = viewport_to_canvas * projection * camera_translation * camera_rotation;
+    let raster = Rc::new(RefCell::new(Rasterizer::new(
+        wasm_canvas.width() as f32,
+        wasm_canvas.height() as f32,
+        1.0,
+        aspect,
+        1.0,
+        view_projection,
+    )));
+
+    let cube = Cube::new(
+        (-0.5, 0.5, 0.5).into(),
+        (-0.5, -0.5, 0.5).into(),
+        (0.5, -0.5, 0.5).into(),
+        (0.5, 0.5, 0.5).into(),
+        (-0.5, 0.5, -0.5).into(),
+        (-0.5, -0.5, -0.5).into(),
+        (0.5, -0.5, -0.5).into(),
+        (0.5, 0.5, -0.5).into(),
+        [
+            Color(255, 0, 0),
+            Color(0, 255, 0),
+            Color(0, 0, 255),
+            Color(255, 0, 255),
+            Color(255, 255, 0),
+            Color(0, 255, 255),
+        ],
+    );
+    let cube: &Cube = Box::leak(Box::new(cube));
+
+    let mut instances = vec![
+        Instance::new(cube).pos((-1.0, 0.0, 0.0).into()).build(),
+        Instance::new(cube).pos((1.0, 0.0, 0.0).into()).build(),
+    ];
+
+    let identity = Mat4::identity();
 
     *raf.borrow_mut() = Some(Closure::wrap(Box::new(move || {
-        wasm_canvas.clear(Color(21, 20, 28));
-        let aspect = wasm_canvas.height() as f32 / wasm_canvas.width() as f32;
+        raster
+            .borrow_mut()
+            .clear(&mut wasm_canvas, Color(21, 20, 28));
+
         let t = *t_cell.borrow();
-        draw_animated_cube_wireframe(
-            &mut wasm_canvas,
-            [
-                (-2.0, -0.5, 5.0).into(),
-                (-2.0, 0.5, 5.0).into(),
-                (-1.0, 0.5, 5.0).into(),
-                (-1.0, -0.5, 5.0).into(),
-            ],
-            [
-                (-2.0, -0.5, 6.0).into(),
-                (-2.0, 0.5, 6.0).into(),
-                (-1.0, 0.5, 6.0).into(),
-                (-1.0, -0.5, 6.0).into(),
-            ],
-            (1.0, aspect),
-            01.0,
-            t,
-            Vec3(-1.5, 0.0, 5.5),
-        );
 
-        draw_animated_cube_wireframe(
-            &mut wasm_canvas,
-            [
-                (-2.0 + 0.2, -0.5, 5.0 + 10.0).into(),
-                (-2.0 + 0.2, 0.5, 5.0 + 10.0).into(),
-                (-1.0 + 0.2, 0.5, 5.0 + 10.0).into(),
-                (-1.0 + 0.2, -0.5, 5.0 + 10.0).into(),
-            ],
-            [
-                (-2.0 + 0.2, -0.5, 6.0 + 10.0).into(),
-                (-2.0 + 0.2, 0.5, 6.0 + 10.0).into(),
-                (-1.0 + 0.2, 0.5, 6.0 + 10.0).into(),
-                (-1.0 + 0.2, -0.5, 6.0 + 10.0).into(),
-            ],
-            (1.0, aspect),
-            1.0,
-            t,
-            Vec3(-1.5 + 0.2, 0.0, 5.5 + 10.0),
-        );
+        // draw_animated_cube_wireframe(
+        //     &mut wasm_canvas,
+        //     [
+        //         (-2.0, -0.5, 5.0).into(),
+        //         (-2.0, 0.5, 5.0).into(),
+        //         (-1.0, 0.5, 5.0).into(),
+        //         (-1.0, -0.5, 5.0).into(),
+        //     ],
+        //     [
+        //         (-2.0, -0.5, 6.0).into(),
+        //         (-2.0, 0.5, 6.0).into(),
+        //         (-1.0, 0.5, 6.0).into(),
+        //         (-1.0, -0.5, 6.0).into(),
+        //     ],
+        //     (1.0, aspect),
+        //     01.0,
+        //     t,
+        //     Vec3(-1.5, 0.0, 5.5),
+        // );
 
-        draw_animated_cube_wireframe(
-            &mut wasm_canvas,
-            [
-                (-2.0 + 2.0, -0.5, 5.0 + 2.5).into(),
-                (-2.0 + 2.0, 0.5, 5.0 + 2.5).into(),
-                (-1.0 + 2.0, 0.5, 5.0 + 2.5).into(),
-                (-1.0 + 2.0, -0.5, 5.0 + 2.5).into(),
-            ],
-            [
-                (-2.0 + 2.0, -0.5, 6.0 + 2.5).into(),
-                (-2.0 + 2.0, 0.5, 6.0 + 2.5).into(),
-                (-1.0 + 2.0, 0.5, 6.0 + 2.5).into(),
-                (-1.0 + 2.0, -0.5, 6.0 + 2.5).into(),
-            ],
-            (1.0, aspect),
-            1.0,
-            t,
-            Vec3(-1.5 + 2.0, 0.0, 5.5 + 2.5),
-        );
+        // draw_animated_cube_wireframe(
+        //     &mut wasm_canvas,
+        //     [
+        //         (-2.0 + 0.2, -0.5, 5.0 + 10.0).into(),
+        //         (-2.0 + 0.2, 0.5, 5.0 + 10.0).into(),
+        //         (-1.0 + 0.2, 0.5, 5.0 + 10.0).into(),
+        //         (-1.0 + 0.2, -0.5, 5.0 + 10.0).into(),
+        //     ],
+        //     [
+        //         (-2.0 + 0.2, -0.5, 6.0 + 10.0).into(),
+        //         (-2.0 + 0.2, 0.5, 6.0 + 10.0).into(),
+        //         (-1.0 + 0.2, 0.5, 6.0 + 10.0).into(),
+        //         (-1.0 + 0.2, -0.5, 6.0 + 10.0).into(),
+        //     ],
+        //     (1.0, aspect),
+        //     1.0,
+        //     t,
+        //     Vec3(-1.5 + 0.2, 0.0, 5.5 + 10.0),
+        // );
+
+        // draw_animated_cube_wireframe(
+        //     &mut wasm_canvas,
+        //     [
+        //         (-2.0 + 2.0, -0.5, 5.0 + 2.5).into(),
+        //         (-2.0 + 2.0, 0.5, 5.0 + 2.5).into(),
+        //         (-1.0 + 2.0, 0.5, 5.0 + 2.5).into(),
+        //         (-1.0 + 2.0, -0.5, 5.0 + 2.5).into(),
+        //     ],
+        //     [
+        //         (-2.0 + 2.0, -0.5, 6.0 + 2.5).into(),
+        //         (-2.0 + 2.0, 0.5, 6.0 + 2.5).into(),
+        //         (-1.0 + 2.0, 0.5, 6.0 + 2.5).into(),
+        //         (-1.0 + 2.0, -0.5, 6.0 + 2.5).into(),
+        //     ],
+        //     (1.0, aspect),
+        //     1.0,
+        //     t,
+        //     Vec3(-1.5 + 2.0, 0.0, 5.5 + 2.5),
+        // );
+
+        for (c, i) in instances.iter_mut().enumerate() {
+            let s = if c % 2 == 0 { -1.0 } else { 1.0 };
+            i.set_rotation(Degrees((t as f32 / 30.0) * 20.0 * s));
+            let delta = (t as f32 / 20.0).sin() * 0.1;
+            i.set_pos(i.pos() + Vec3(0.0, delta, -delta));
+            i.update_transform_matrix();
+            raster.borrow_mut().render_instance(&mut wasm_canvas, i)
+        }
 
         wasm_canvas.draw();
 

@@ -27,7 +27,7 @@ pub fn canvas_coords_to_screen_coords<X: IntoPixelValue, Y: IntoPixelValue>(
     Some((x as u32, y as u32))
 }
 
-pub trait IntoPixelValue {
+pub trait IntoPixelValue: Copy + Clone {
     fn into_pixel_value(self) -> i32;
 }
 
