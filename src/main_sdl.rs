@@ -6,6 +6,7 @@ use sdl2::{event::Event, keyboard::Keycode, pixels::PixelFormatEnum};
 use crate::{
     canvas::Canvas,
     draw::Rasterizer,
+    light::Light,
     math::{Degrees, Mat4, Vec3},
     object::{Cube, Instance, Triangle},
     rasterize::{Color, Point},
@@ -87,29 +88,34 @@ pub fn main() -> Result<(), String> {
     );
 
     let mut instances = vec![
-        Instance::new(&cube).pos((-1.0, 0.0, 0.0).into()).build(),
-        Instance::new(&cube).pos((1.0, 0.0, 0.0).into()).build(),
+        Instance::new(&cube).pos((-1.0, 0.0, 1.0).into()).build(),
+        Instance::new(&cube).pos((1.0, 0.0, 1.0).into()).build(),
     ];
 
     let aspect = sdl_canvas.height() as f32 / sdl_canvas.width() as f32;
     let camera_translation = Mat4::translate(Vec3(0.0, 0.0, 5.0));
     let camera_rotation = Mat4::identity();
-    let projection = Mat4::perspective(-1.0, 1.0, -aspect, aspect, 1.0, 100.0);
+    let perspective = Mat4::perspective(-1.0, 1.0, -aspect, aspect, 1.0, 100.0);
     let viewport_to_canvas = Mat4::viewport_to_canvas(
         sdl_canvas.width() as f32,
         sdl_canvas.height() as f32,
         1.0,
         1.0,
     );
-    let view_projection =
-        viewport_to_canvas * projection * camera_translation.invert().unwrap() * camera_rotation;
+    let view_matrix = camera_translation.invert().unwrap() * camera_rotation.invert().unwrap();
+    let projection = viewport_to_canvas * perspective;
     let mut raster = Rasterizer::new(
         sdl_canvas.width() as f32,
         sdl_canvas.height() as f32,
         1.0,
         aspect,
         1.0,
-        view_projection,
+        view_matrix,
+        projection,
+        vec![
+            Light::Ambient(0.2),
+            Light::Directional(0.4, Vec3(0.0, 0.0, 1.0)),
+        ],
     );
 
     let mut t = 0;

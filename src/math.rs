@@ -1,6 +1,6 @@
 use std::f32::consts::PI;
 use std::fmt::Debug;
-use std::ops::{Add, Div, Index, Mul, Sub};
+use std::ops::{Add, Div, Index, Mul, Sub, Deref};
 
 use crate::rasterize::Color;
 
@@ -64,9 +64,14 @@ impl Vec3<f32> {
     pub fn angle(&self, rhs: &Vec3<f32>) -> f32 {
         self.dot(rhs) / (self.magnitude() * rhs.magnitude())
     }
+
+    pub fn normalize(&self) -> Self {
+        let mag = self.magnitude();
+        Self(self.0 / mag, self.1 / mag, self.2 / mag)
+    }
 }
 
-impl<T: Mul<Output = T> + Add<Output = T>  + Copy> Vec3<T> {
+impl<T: Mul<Output = T> + Add<Output = T> + Copy> Vec3<T> {
     pub fn dot(&self, rhs: &Vec3<T>) -> T {
         self.0 * rhs.0 + self.1 * rhs.1 + self.2 * rhs.2
     }
@@ -112,6 +117,14 @@ impl<T: Sub<Output = T> + Copy> Sub for &Vec3<T> {
     }
 }
 
+impl<T: Add<Output = T> + Copy> Add<&Vec3<T>> for Vec3<T> {
+    type Output = Vec3<T>;
+
+    fn add(self, rhs: &Vec3<T>) -> Self::Output {
+        &self + rhs
+    }
+}
+
 impl<T: Add<Output = T> + Copy> Add<Vec3<T>> for Vec3<T> {
     type Output = Vec3<T>;
 
@@ -119,7 +132,6 @@ impl<T: Add<Output = T> + Copy> Add<Vec3<T>> for Vec3<T> {
         &self + &rhs
     }
 }
-
 
 impl<T: Add<Output = T> + Copy> Add<Vec3<T>> for &Vec3<T> {
     type Output = Vec3<T>;
@@ -134,6 +146,15 @@ impl<T: Add<Output = T> + Copy> Add for &Vec3<T> {
 
     fn add(self, rhs: Self) -> Self::Output {
         Vec3(self.0 + rhs.0, self.1 + rhs.1, self.2 + rhs.2)
+    }
+}
+
+
+impl<T: Mul<Output = T> + Copy> Mul<T> for Vec3<T> {
+    type Output = Vec3<T>;
+
+    fn mul(self, rhs: T) -> Self::Output {
+        Vec3(self.0 * rhs, self.1 * rhs, self.2 * rhs)
     }
 }
 
@@ -166,6 +187,12 @@ impl<T> From<(T, T, T)> for Vec3<T> {
 }
 
 pub struct Vec4<T>(pub T, pub T, pub T, pub T);
+
+impl<T: Copy> Vec4<T> {
+    pub fn drop_fourth_component(&self) -> Vec3<T> {
+        Vec3(self.0, self.1, self.2)
+    }
+}
 
 impl<T: Mul<Output = T> + Add<Output = T> + Copy> Vec4<T> {
     pub fn dot(&self, rhs: &Vec4<T>) -> T {
@@ -590,7 +617,15 @@ impl<T> Index<(u8, u8)> for Mat4<T> {
     }
 }
 
-impl<T: Debug + Mul<Output = T> + Add<Output = T> + Copy> Mul<Vec4<T>> for &Mat4<T> {
+impl<T: Debug + Mul<Output = T> + Add<Output = T> + Copy> Mul<Vec4<T>> for Mat4<T>{
+    type Output = Vec4<T>;
+
+    fn mul(self, rhs: Vec4<T>) -> Self::Output {
+        &self * &rhs
+    }
+}
+
+impl<T: Debug + Mul<Output = T> + Add<Output = T> + Copy> Mul<Vec4<T>> for &Mat4<T>{
     type Output = Vec4<T>;
 
     fn mul(self, rhs: Vec4<T>) -> Self::Output {

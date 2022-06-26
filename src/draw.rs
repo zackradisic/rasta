@@ -1,5 +1,6 @@
 use crate::{
     canvas::{canvas_coords_to_screen_coords, Canvas, IntoPixelValue},
+    light::Light,
     math::{Degrees, Mat4, Vec2, Vec3, Vec4},
     object::{Cube, Instance, Model, Triangle},
     rasterize::{Color, Point},
@@ -13,6 +14,9 @@ pub struct Rasterizer {
     d: f32,
     depth_buffer: Vec<f32>,
     pub view_projection_matrix: Mat4<f32>,
+    pub view_matrix: Mat4<f32>,
+    lights: Vec<Light>,
+    is_back: bool,
 }
 
 impl Rasterizer {
@@ -22,7 +26,9 @@ impl Rasterizer {
         vw: f32,
         vh: f32,
         d: f32,
-        view_projection_matrix: Mat4<f32>,
+        view_matrix: Mat4<f32>,
+        projection_matrix: Mat4<f32>,
+        lights: Vec<Light>,
     ) -> Self {
         Self {
             cw,
@@ -31,11 +37,16 @@ impl Rasterizer {
             vh,
             d,
             depth_buffer: vec![f32::INFINITY; cw as usize * ch as usize],
-            view_projection_matrix,
+            view_projection_matrix: &projection_matrix * &view_matrix,
+            view_matrix,
+            lights,
+            is_back: false,
         }
     }
 
     pub fn should_cull(&self, t: &Triangle, center: Vec3<f32>) -> bool {
+        let triangle_center = (&t.p0 + &t.p1 + &t.p2) * (1.0 / 3.0);
+        let center = center - triangle_center;
         let normal = t.normal();
         let angle = normal.angle(&(&center - &normal));
         angle > 0.0
@@ -205,11 +216,40 @@ impl Rasterizer {
         Self::draw_line(canvas, p2, p0, color)
     }
 
+    pub fn compute_illumination(center: Vec3<f32>, normal: Vec3<f32>, light: &Light) -> f32 {
+        let mut illumination = 0.2;
+        match light {
+            Light::Ambient(_) => todo!(),
+            Light::Directional(intensity, dir) => {
+                // Diffuse component
+                let cos_alpha = f32::max(
+                    0.0,
+                    dir.dot(&normal) / (dir.magnitude() * normal.magnitude()),
+                );
+                illumination += cos_alpha * intensity;
+
+                // Specular component
+                let reflected = &normal * (2.0 * normal.dot(&dir)) + (dir * -1.0);
+                let view = Vec3(0.0, 0.0, 0.0) - center;
+                let cos_beta = reflected.dot(&view) / (reflected.magnitude() * view.magnitude());
+                if cos_beta > 0.0 {
+                    let specular = 50;
+                    illumination += cos_beta.powi(specular) * intensity;
+                }
+                // println!("ILLUMINATION: {}", illumination);
+            }
+            Light::Point(_, _) => todo!(),
+        };
+        illumination
+    }
+
     /// Draw triangle by passing in the triangle object and its projected vertices
     pub fn draw_triangle<C: Canvas>(
         &mut self,
         canvas: &mut C,
         center: Vec3<f32>,
+        light_direction: Vec3<f32>,
+        camera: &Mat4<f32>,
         triangle: &Triangle,
         mut p0: Point,
         mut p1: Point,
@@ -220,7 +260,6 @@ impl Rasterizer {
             return;
         }
 
-        // println!("p0 {:?} p1 {:?} p2 {:?}", p0, p1, p2);
         let (mut i0, mut i1, mut i2) = (0, 1, 2);
         // Sort so y0 <= y1 <= y2
         if p1.y < p0.y {
@@ -235,11 +274,16 @@ impl Rasterizer {
             std::mem::swap(&mut p1, &mut p2);
             std::mem::swap(&mut i1, &mut i2);
         }
+        let (v0, v1, v2) = (&triangle[i0], &triangle[i1], &triangle[i2]);
+        // println!("v0 {:?} v1 {:?} v2 {:?}", v0, v1, v2);
+
         let (z0, z1, z2) = (
             1.0 / triangle[i0].2,
             1.0 / triangle[i1].2,
             1.0 / triangle[i2].2,
         );
+
+        let normal = triangle.normal().normalize();
 
         // Compute x of triangle edges
         let x01 = Self::interpolate(p0.y, p0.x, p1.y, p1.x);
@@ -273,6 +317,12 @@ impl Rasterizer {
             (x012, x02, z012, z02)
         };
 
+        let illumination = Self::compute_illumination(
+            (v0 + v1 + v2) / 3.0,
+            normal,
+            &Light::Directional(0.6, light_direction),
+        );
+
         // Draw
         let mut y = p0.y;
         while y <= p2.y {
@@ -283,7 +333,10 @@ impl Rasterizer {
 
             let mut x = xl;
             while x <= xr {
-                self.put_pixel(canvas, x, y, zscan[(x - xl) as usize], color);
+                let illuminated_color = Color::from_vec3_f32s(&color.to_vec3_f32s() * illumination);
+
+                self.put_pixel(canvas, x, y, zscan[(x - xl) as usize], illuminated_color);
+                // self.put_pixel(canvas, x, y, zscan[(x - xl) as usize], color);
                 x += 1.0;
             }
             y += 1.0;
@@ -308,7 +361,7 @@ impl Rasterizer {
         let mut d = d0;
 
         while i0 <= i1 {
-            ret.push(Color::from_vec3_f32s(d.clone()).unwrap());
+            ret.push(Color::from_vec3_f32s(d.clone()));
             d.0 += a_r;
             d.1 += a_g;
             d.2 += a_b;
@@ -481,6 +534,8 @@ impl Rasterizer {
             self.draw_triangle(
                 canvas,
                 Vec3(0.0, 0.0, 0.0),
+                Vec3(0.0, 0.0, 0.0),
+                &Mat4::identity(),
                 triangle,
                 self.project_vertex(triangle.p0.clone()).into(),
                 self.project_vertex(triangle.p1.clone()).into(),
@@ -530,31 +585,15 @@ impl Rasterizer {
             };
             projected.push(divide_by_w);
         }
-        // let transformed_center = &final_transform * Vec4(0.0, 0.0, 0.0, 1.0);
-        // let transformed_center = Vec4(0.0, 0.0, -5.0, 1.0);
-        let transformed_center = &final_transform * Vec4(0.0, 0.0, -5.0, 1.0);
+
+        let transformed_center = &self.view_matrix * Vec4(0.0, 0.0, 0.0, 1.0);
+        let light_direction = &self.view_matrix * Vec4(0.2, 0.0, 1.0, 0.0);
 
         let mut i = 0;
         for (c, t) in model.triangles().enumerate() {
-            // Self::draw_wireframe_triangle(
-            //     canvas,
-            //     projected[i].into(),
-            //     projected[i + 1].into(),
-            //     projected[i + 2].into(),
-            //     t.color,
-            // );
-
-            let side = match c {
-                0 | 1 => "front",
-                2 | 3 => "back",
-                4 | 5 => "left",
-                6 | 7 => "right",
-                8 | 9 => "top",
-                10 | 11 => "bot",
-                _ => unreachable!(),
-            };
-
-            // println!("{} TRI: {:?}", side, t.transform(&final_transform));
+            if c > 1 && c < 4 {
+                self.is_back = true;
+            }
 
             self.draw_triangle(
                 canvas,
@@ -563,12 +602,15 @@ impl Rasterizer {
                     transformed_center.1,
                     transformed_center.2,
                 ),
-                &t.transform(&final_transform),
+                Vec3(light_direction.0, light_direction.1, light_direction.2),
+                &final_transform,
+                &t.transform(&(&self.view_matrix * transform_matrix)),
                 projected[i].into(),
                 projected[i + 1].into(),
                 projected[i + 2].into(),
                 t.color,
             );
+            self.is_back = false;
             i += 3;
         }
     }

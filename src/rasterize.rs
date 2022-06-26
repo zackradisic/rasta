@@ -29,12 +29,12 @@ impl Color {
         )
     }
 
-    pub fn from_vec3_f32s(v: Vec3<f32>) -> Option<Self> {
-        Some(Self(
+    pub fn from_vec3_f32s(v: Vec3<f32>) -> Self {
+        Self(
             (v.0.clamp(0.0, 1.0) * 255.0) as u8,
             (v.1.clamp(0.0, 1.0) * 255.0) as u8,
             (v.2.clamp(0.0, 1.0) * 255.0) as u8,
-        ))
+        )
     }
 }
 

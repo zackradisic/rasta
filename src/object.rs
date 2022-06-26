@@ -274,8 +274,8 @@ impl Cube {
             Triangle::new(ftl.clone(), fbl.clone(), fbr.clone(), front),
             Triangle::new(ftr.clone(), ftl.clone(), fbr.clone(), front),
             // back
-            Triangle::new(btl.clone(), bbl.clone(), bbr.clone(), back),
-            Triangle::new(btr.clone(), btl.clone(), bbr.clone(), back),
+            Triangle::new(btr.clone(), bbr.clone(), bbl.clone(), back),
+            Triangle::new(btl.clone(), btr.clone(), bbl.clone(), back),
             // left side
             Triangle::new(ftl.clone(), bbl.clone(), fbl.clone(), left),
             Triangle::new(btl.clone(), bbl.clone(), ftl.clone(), left),

@@ -1,5 +1,6 @@
 pub mod canvas;
 pub mod draw;
+pub mod light;
 pub mod math;
 pub mod object;
 pub mod rasterize;
