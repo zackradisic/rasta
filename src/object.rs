@@ -5,8 +5,9 @@ use std::{
 };
 
 use crate::{
-    math::{Mat4, Radians, Vec3, Vec4},
+    math::{Mat4, Radians, Vec2, Vec3, Vec4},
     rasterize::Color,
+    texture::Texture,
 };
 
 pub struct InstanceBuilder<'a, M: Model<'a>> {
@@ -127,6 +128,7 @@ pub trait Model<'a> {
 
     fn vertices(&'a self) -> Self::VertexIter;
     fn triangles(&'a self) -> Self::TriangleIter;
+    fn texture(&'a self) -> Option<&'a Texture>;
 }
 
 #[derive(Default)]
@@ -140,11 +142,37 @@ pub struct Triangle {
     pub p1: Vec3<f32>,
     pub p2: Vec3<f32>,
     pub color: Color,
+    pub uvs: Option<[Vec2<f32>; 3]>,
 }
 
 impl Triangle {
     pub fn new(p0: Vec3<f32>, p1: Vec3<f32>, p2: Vec3<f32>, color: Color) -> Self {
-        Self { p0, p1, p2, color }
+        Self {
+            p0,
+            p1,
+            p2,
+            color,
+            uvs: None,
+        }
+    }
+
+    pub fn new_with_uvs<V: Into<Vec2<f32>> + Clone>(
+        p0: Vec3<f32>,
+        p1: Vec3<f32>,
+        p2: Vec3<f32>,
+        uvs: [V; 3],
+    ) -> Self {
+        Self {
+            p0,
+            p1,
+            p2,
+            color: Color(0, 0, 0),
+            uvs: Some([
+                uvs[0].clone().into(),
+                uvs[1].clone().into(),
+                uvs[2].clone().into(),
+            ]),
+        }
     }
 
     pub fn transform(&self, m: &Mat4<f32>) -> Self {
@@ -156,6 +184,7 @@ impl Triangle {
             p1: Vec3(p1.0, p1.1, p1.2),
             p2: Vec3(p2.0, p2.1, p2.2),
             color: self.color,
+            uvs: self.uvs.clone(),
         }
     }
 
@@ -196,21 +225,25 @@ impl<'a> Model<'a> for Triangle {
     fn triangles(&'a self) -> Self::TriangleIter {
         std::iter::once(&self)
     }
+
+    fn texture(&'a self) -> Option<&'a Texture> {
+        todo!()
+    }
 }
 
 #[derive(Clone)]
-pub struct Cube {
+pub struct Cube<'a> {
     front: [Vec3<f32>; 4],
     back: [Vec3<f32>; 4],
     triangles: [Triangle; 12],
-    pub color: [Color; 6],
+    texture: Option<&'a Texture>,
 }
 
 fn map_triangle(t: &Triangle) -> [&Vec3<f32>; 3] {
     [&t.p0, &t.p1, &t.p2]
 }
 
-impl<'a> Model<'a> for Cube {
+impl<'a, 'b> Model<'a> for Cube<'b> {
     type VertexIter =
         Flatten<Map<Iter<'a, Triangle>, for<'r> fn(&'r Triangle) -> [&'r Vec3<f32>; 3]>>;
 
@@ -223,9 +256,37 @@ impl<'a> Model<'a> for Cube {
     fn triangles(&'a self) -> Self::TriangleIter {
         self.triangles.iter()
     }
+
+    fn texture(&'a self) -> Option<&'a Texture> {
+        self.texture
+    }
 }
 
-impl Cube {
+impl<'a> Cube<'a> {
+    pub fn new_with_texture<V: Into<Vec2<f32>> + Clone>(
+        ftl: Vec3<f32>,
+        fbl: Vec3<f32>,
+        fbr: Vec3<f32>,
+        ftr: Vec3<f32>,
+        btl: Vec3<f32>,
+        bbl: Vec3<f32>,
+        bbr: Vec3<f32>,
+        btr: Vec3<f32>,
+        tex_coords: [[V; 3]; 12],
+        tex: &'a Texture,
+    ) -> Self {
+        let triangles = Self::make_triangles_with_uvs(
+            &ftl, &fbl, &fbr, &ftr, &btl, &bbl, &bbr, &btr, tex_coords,
+        );
+
+        Self {
+            front: [ftl, fbl, fbr, ftr],
+            back: [btl, bbl, bbr, btr],
+            triangles,
+            texture: Some(tex),
+        }
+    }
+
     pub fn new(
         ftl: Vec3<f32>,
         fbl: Vec3<f32>,
@@ -254,7 +315,7 @@ impl Cube {
             front: [ftl, fbl, fbr, ftr],
             back: [btl, bbl, bbr, btr],
             triangles,
-            color: [front, back, left, right, top, bottom],
+            texture: None,
         }
     }
 
@@ -288,6 +349,39 @@ impl Cube {
             // bot
             Triangle::new(fbr.clone(), fbl.clone(), bbr.clone(), bottom),
             Triangle::new(bbl.clone(), bbr.clone(), fbl.clone(), bottom),
+        ]
+    }
+
+    fn make_triangles_with_uvs<V: Into<Vec2<f32>> + Clone>(
+        ftl: &Vec3<f32>,
+        fbl: &Vec3<f32>,
+        fbr: &Vec3<f32>,
+        ftr: &Vec3<f32>,
+        btl: &Vec3<f32>,
+        bbl: &Vec3<f32>,
+        bbr: &Vec3<f32>,
+        btr: &Vec3<f32>,
+        [front, front2, back, back2, left, left2, right, right2, top, top2, bottom, bottom2]: [[V; 3]; 12],
+    ) -> [Triangle; 12] {
+        [
+            // front
+            Triangle::new_with_uvs(ftl.clone(), fbl.clone(), fbr.clone(), front),
+            Triangle::new_with_uvs(ftr.clone(), ftl.clone(), fbr.clone(), front2),
+            // back
+            Triangle::new_with_uvs(btr.clone(), bbr.clone(), bbl.clone(), back),
+            Triangle::new_with_uvs(btl.clone(), btr.clone(), bbl.clone(), back2),
+            // left side
+            Triangle::new_with_uvs(ftl.clone(), bbl.clone(), fbl.clone(), left),
+            Triangle::new_with_uvs(btl.clone(), bbl.clone(), ftl.clone(), left2),
+            // right side
+            Triangle::new_with_uvs(ftr.clone(), fbr.clone(), bbr.clone(), right),
+            Triangle::new_with_uvs(bbr.clone(), btr.clone(), ftr.clone(), right2),
+            // top
+            Triangle::new_with_uvs(ftl.clone(), ftr.clone(), btr.clone(), top),
+            Triangle::new_with_uvs(btr.clone(), btl.clone(), ftl.clone(), top2),
+            // bot
+            Triangle::new_with_uvs(fbr.clone(), fbl.clone(), bbr.clone(), bottom),
+            Triangle::new_with_uvs(bbl.clone(), bbr.clone(), fbl.clone(), bottom2),
         ]
     }
 }

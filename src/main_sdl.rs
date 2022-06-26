@@ -8,9 +8,10 @@ use crate::{
     draw::Rasterizer,
     light::Light,
     math::{Degrees, Mat4, Vec3},
-    object::{Cube, Instance, Triangle},
+    object::{Cube, Instance, Model, Triangle},
     rasterize::{Color, Point},
     sdl_canvas::SDLCanvas,
+    texture::Texture,
 };
 
 const WIDTH: u32 = 960;
@@ -48,25 +49,26 @@ pub fn main() -> Result<(), String> {
         .create_texture_streaming(PixelFormatEnum::RGB24, WIDTH, HEIGHT)
         .map_err(to_string)?;
 
-    let img = load_texture("./shrek.png")?;
+    // let shrek_texture = Texture::load("./shrek.png")?;
+    let shrek_texture = Texture::load("./hl2.png")?;
 
     let mut sdl_canvas = SDLCanvas::new(WIDTH, HEIGHT, canvas, texture);
 
-    {
-        // let mut i = 0;
-        for y in 0..img.h {
-            for x in 0..img.w {
-                let pix = img.pixels[(y * img.w) as usize + x as usize];
-                // texture_buf[i] = pix.0;
-                // texture_buf[i + 1] = pix.1;
-                // texture_buf[i + 2] = pix.2;
-                // i += 3;
-                sdl_canvas.put_pixel(x as i32, img.h as i32 - y as i32, pix);
-            }
+    // {
+    //     // let mut i = 0;
+    //     for y in 0..img.h {
+    //         for x in 0..img.w {
+    //             let pix = img.pixels[(y * img.w) as usize + x as usize];
+    //             // texture_buf[i] = pix.0;
+    //             // texture_buf[i + 1] = pix.1;
+    //             // texture_buf[i + 2] = pix.2;
+    //             // i += 3;
+    //             sdl_canvas.put_pixel(x as i32, img.h as i32 - y as i32, pix);
+    //         }
 
-            // i = (y * WIDTH * 3) as usize;
-        }
-    }
+    //         // i = (y * WIDTH * 3) as usize;
+    //     }
+    // }
 
     let cube = Cube::new(
         (-0.5, 0.5, 0.5).into(),
@@ -87,9 +89,44 @@ pub fn main() -> Result<(), String> {
         ],
     );
 
+    let textured_cube = Cube::new_with_texture(
+        (-0.5, 0.5, 0.5).into(),
+        (-0.5, -0.5, 0.5).into(),
+        (0.5, -0.5, 0.5).into(),
+        (0.5, 0.5, 0.5).into(),
+        (-0.5, 0.5, -0.5).into(),
+        (-0.5, -0.5, -0.5).into(),
+        (0.5, -0.5, -0.5).into(),
+        (0.5, 0.5, -0.5).into(),
+        [
+            // front
+            [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0)],
+            [(1.0, 0.0), (0.0, 0.0), (1.0, 1.0)],
+            // back
+            [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0)],
+            [(1.0, 0.0), (0.0, 0.0), (1.0, 1.0)],
+            // left
+            [(1.0, 0.0), (0.0, 1.0), (1.0, 1.0)],
+            [(0.0, 0.0), (0.0, 1.0), (1.0, 0.0)],
+            // right
+            [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0)],
+            [(1.0, 1.0), (1.0, 0.0), (0.0, 0.0)],
+            // top
+            [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0)],
+            [(1.0, 1.0), (1.0, 0.0), (0.0, 0.0)],
+            // bot
+            [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0)],
+            [(1.0, 1.0), (1.0, 0.0), (0.0, 0.0)],
+        ],
+        &shrek_texture,
+    );
+
     let mut instances = vec![
         Instance::new(&cube).pos((-1.0, 0.0, -2.0).into()).build(),
         Instance::new(&cube).pos((1.0, 0.0, -2.0).into()).build(),
+        Instance::new(&textured_cube)
+            .pos((2.0, 0.0, -2.0).into())
+            .build(),
     ];
 
     let aspect = sdl_canvas.height() as f32 / sdl_canvas.width() as f32;
@@ -216,7 +253,7 @@ pub fn main() -> Result<(), String> {
                 i.set_pos(i.pos() + Vec3(0.0, delta, -delta));
             }
             i.update_transform_matrix();
-            raster.render_instance(&mut sdl_canvas, i)
+            raster.render_instance(&mut sdl_canvas, i, i.model.texture());
         }
 
         // draw_cube_wireframe_obj(&mut sdl_canvas, &cube, (1.0, aspect), 1.0);
@@ -229,27 +266,4 @@ pub fn main() -> Result<(), String> {
     }
 
     Ok(())
-}
-
-struct Img {
-    pixels: Vec<Color>,
-    w: u32,
-    h: u32,
-}
-
-fn load_texture(path: &str) -> Result<Img, String> {
-    let image = image::open(path).map_err(to_string)?;
-
-    let (w, h) = image.dimensions();
-
-    let mut pixels = Vec::with_capacity(w as usize * h as usize);
-
-    for y in 0..h {
-        for x in 0..w {
-            let pixel = image.get_pixel(x, y);
-            pixels.push(Color(pixel[0], pixel[1], pixel[2]))
-        }
-    }
-
-    Ok(Img { pixels, w, h })
 }

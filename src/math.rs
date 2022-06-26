@@ -10,6 +10,14 @@ use crate::rasterize::Color;
 
 pub struct Vec2<T>(pub T, pub T);
 
+impl<T> From<(T, T)> for Vec2<T> {
+    fn from((a, b): (T, T)) -> Self {
+        Self(a, b)
+    }
+}
+
+impl<T: Copy> Copy for Vec2<T> {}
+
 impl<T: Debug> Debug for Vec2<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("Vec2").field(&self.0).field(&self.1).finish()

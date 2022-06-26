@@ -4,7 +4,19 @@ use crate::{
     math::{Degrees, Mat4, Vec2, Vec3, Vec4},
     object::{Cube, Instance, Model, Triangle},
     rasterize::{Color, Point},
+    texture::Texture,
 };
+
+enum ColorOrTexture<'a> {
+    Color(Color),
+    Texture(&'a Texture),
+}
+
+impl<'a> ColorOrTexture<'a> {
+    fn is_texture(&self) -> bool {
+        matches!(self, Self::Texture(_))
+    }
+}
 
 pub struct Rasterizer {
     cw: f32,
@@ -136,6 +148,24 @@ impl Rasterizer {
         ret
     }
 
+    pub fn triangle_interpolate(
+        y0: f32,
+        y1: f32,
+        y2: f32,
+        d0: f32,
+        d1: f32,
+        d2: f32,
+    ) -> (Vec<f32>, Vec<f32>) {
+        let x01 = Self::interpolate(y0, d0, y1, d1);
+        let x12 = Self::interpolate(y1, d1, y2, d2);
+        let x02 = Self::interpolate(y0, d0, y2, d2);
+
+        let take = x01.len() - 1;
+        let x012: Vec<_> = x01.into_iter().take(take).chain(x12.into_iter()).collect();
+
+        (x02, x012)
+    }
+
     pub fn draw_line<C: Canvas>(canvas: &mut C, mut p0: Point, mut p1: Point, color: Color) {
         let dx = p1.x - p0.x;
         let dy = p1.y - p0.y;
@@ -219,8 +249,13 @@ impl Rasterizer {
         Self::draw_line(canvas, p2, p0, color)
     }
 
-    pub fn compute_illumination(center: Vec3<f32>, normal: Vec3<f32>, light: &Light) -> f32 {
-        let mut illumination = 0.4;
+    pub fn compute_illumination(
+        center: Vec3<f32>,
+        camera_pos: &Vec3<f32>,
+        normal: Vec3<f32>,
+        light: &Light,
+    ) -> f32 {
+        let mut illumination = 0.2;
         match light {
             Light::Ambient(_) => todo!(),
             Light::Directional(intensity, dir) => {
@@ -239,7 +274,6 @@ impl Rasterizer {
                     let specular = 50;
                     illumination += cos_beta.powi(specular) * intensity;
                 }
-                // println!("ILLUMINATION: {}", illumination);
             }
             Light::Point(_, _) => todo!(),
         };
@@ -252,16 +286,17 @@ impl Rasterizer {
         canvas: &mut C,
         center: Vec3<f32>,
         light_direction: Vec3<f32>,
-        camera: &Mat4<f32>,
+        camera_pos: &Vec3<f32>,
         triangle: &Triangle,
+        texture: Option<&Texture>,
         mut p0: Point,
         mut p1: Point,
         mut p2: Point,
-        color: Color,
     ) {
         if self.should_cull(triangle, center) {
             return;
         }
+        let color = triangle.color;
 
         let (mut i0, mut i1, mut i2) = (0, 1, 2);
         // Sort so y0 <= y1 <= y2
@@ -287,54 +322,57 @@ impl Rasterizer {
 
         let normal = triangle.normal().normalize();
 
+        let light = Light::Directional(0.9, light_direction);
+
         // Compute x of triangle edges
-        let x01 = Self::interpolate(p0.y, p0.x, p1.y, p1.x);
-        let x12 = Self::interpolate(p1.y, p1.x, p2.y, p2.x);
-        let x02 = Self::interpolate(p0.y, p0.x, p2.y, p2.x);
-
+        let (x02, x012) = Self::triangle_interpolate(p0.y, p1.y, p2.y, p0.x, p1.x, p2.x);
         // Compute interpolated z coordinates for depth buffer
-        let z01 = Self::interpolate(p0.y, z0, p1.y, z1);
-        let z12 = Self::interpolate(p1.y, z1, p2.y, z2);
-        let z02 = Self::interpolate(p0.y, z0, p2.y, z2);
-
-        let light = Light::Directional(0.6, light_direction);
-
-        let i0 = Self::compute_illumination(v0.clone(), normal.clone(), &light);
-        let i1 = Self::compute_illumination(v1.clone(), normal.clone(), &light);
-        let i2 = Self::compute_illumination(v1.clone(), normal.clone(), &light);
-        let i01 = Self::interpolate(p0.y, i0, p1.y, i1);
-        let i12 = Self::interpolate(p1.y, i1, p2.y, i2);
-        let i02 = Self::interpolate(p0.y, i0, p2.y, i2);
-
-        // Concatenate short sides
-        let take_amount = x01.len() - 1;
-        let x012: Vec<_> = x01
-            .into_iter()
-            .take(take_amount)
-            .chain(x12.into_iter())
-            .collect();
-        let take_amount = z01.len() - 1;
-        let z012: Vec<_> = z01
-            .into_iter()
-            .take(take_amount)
-            .chain(z12.into_iter())
-            .collect();
-        let take_amount = i01.len() - 1;
-        let i012: Vec<_> = i01
-            .into_iter()
-            .take(take_amount)
-            .chain(i12.into_iter())
-            .collect();
+        let (z02, z012) = Self::triangle_interpolate(p0.y, p1.y, p2.y, z0, z1, z2);
+        // Compute points for Gouraud shading
+        let illu0 = Self::compute_illumination(v0.clone(), camera_pos, normal.clone(), &light);
+        let illu1 = Self::compute_illumination(v1.clone(), camera_pos, normal.clone(), &light);
+        let illu2 = Self::compute_illumination(v2.clone(), camera_pos, normal.clone(), &light);
+        let (i02, i012) = Self::triangle_interpolate(p0.y, p1.y, p2.y, illu0, illu1, illu2);
+        // Compute uv for texture
+        let (u02, u012, v02, v012) = if let Some(uvs) = &triangle.uvs {
+            let i0 = i0 as usize;
+            let i1 = i1 as usize;
+            let i2 = i2 as usize;
+            let (u02, u012) = Self::triangle_interpolate(
+                // p0.y, p1.y, p2.y, uvs[i0].0, //* z0,
+                // uvs[i1].0, //* z1,
+                // uvs[i2].0, //* z2,
+                p0.y,
+                p1.y,
+                p2.y,
+                uvs[i0].0 * z0,
+                uvs[i1].0 * z1,
+                uvs[i2].0 * z2,
+            );
+            let (v02, v012) = Self::triangle_interpolate(
+                // p0.y, p1.y, p2.y, uvs[i0].1, //* z0,
+                // uvs[i1].1, //* z1,
+                // uvs[i2].1, //* z2,
+                p0.y,
+                p1.y,
+                p2.y,
+                uvs[i0].1 * z0,
+                uvs[i1].1 * z1,
+                uvs[i2].1 * z2,
+            );
+            (u02, u012, v02, v012)
+        } else {
+            (vec![], vec![], vec![], vec![])
+        };
 
         // Determine which is left and which is right
         let m = x02.len() / 2;
-        let (x_left, x_right, z_left, z_right, i_left, i_right) = if x02[m] < x012[m] {
-            (x02, x012, z02, z012, i02, i012)
-        } else {
-            (x012, x02, z012, z02, i012, i02)
-        };
-
-        let illumination = Self::compute_illumination((v0 + v1 + v2) / 3.0, normal, &light);
+        let (x_left, x_right, z_left, z_right, i_left, i_right, u_left, u_right, v_left, v_right) =
+            if x02[m] < x012[m] {
+                (x02, x012, z02, z012, i02, i012, u02, u012, v02, v012)
+            } else {
+                (x012, x02, z012, z02, i012, i02, u012, u02, v012, v02)
+            };
 
         // Draw
         let mut y = p0.y;
@@ -344,14 +382,31 @@ impl Rasterizer {
 
             let zscan = Self::interpolate(xl, z_left[i], xr, z_right[i]);
             let iscan = Self::interpolate(xl, i_left[i], xr, i_right[i]);
+            let uscan = triangle
+                .uvs
+                .map(|_| Self::interpolate(xl, u_left[i], xr, u_right[i]));
+            let vscan = triangle
+                .uvs
+                .map(|_| Self::interpolate(xl, v_left[i], xr, v_right[i]));
 
             let mut x = xl;
             while x <= xr {
-                // let illuminated_color = Color::from_vec3_f32s(&color.to_vec3_f32s() * illumination);
+                let inverse_z = zscan[(x - xl) as usize];
+                let color =
+                    if let (Some(uscan), Some(vscan), Some(texture)) = (&uscan, &vscan, texture) {
+                        texture.texel(
+                            // uscan[(x - xl) as usize], // / inverse_z,
+                            // vscan[(x - xl) as usize], // / inverse_z,
+                            uscan[(x - xl) as usize] / inverse_z,
+                            vscan[(x - xl) as usize] / inverse_z,
+                        )
+                    } else {
+                        color
+                    };
                 let illuminated_color =
                     Color::from_vec3_f32s(&color.to_vec3_f32s() * iscan[(x - xl) as usize]);
 
-                self.put_pixel(canvas, x, y, zscan[(x - xl) as usize], illuminated_color);
+                self.put_pixel(canvas, x, y, inverse_z, illuminated_color);
                 // self.put_pixel(canvas, x, y, zscan[(x - xl) as usize], color);
                 x += 1.0;
             }
@@ -551,12 +606,12 @@ impl Rasterizer {
                 canvas,
                 Vec3(0.0, 0.0, 0.0),
                 Vec3(0.0, 0.0, 0.0),
-                &Mat4::identity(),
+                &Vec3(0.0, 0.0, 0.0),
                 triangle,
+                None,
                 self.project_vertex(triangle.p0.clone()).into(),
                 self.project_vertex(triangle.p1.clone()).into(),
                 self.project_vertex(triangle.p2.clone()).into(),
-                triangle.color,
             )
         }
     }
@@ -573,20 +628,22 @@ impl Rasterizer {
         }
     }
 
-    pub fn render_instance<'a, C: Canvas, M: Model<'a>>(
+    pub fn render_instance<'a, 'b, C: Canvas, M: Model<'a>>(
         &mut self,
         canvas: &mut C,
         instance: &Instance<'a, M>,
+        texture: Option<&'b Texture>,
     ) {
         let instance_matrix = &instance.transform_matrix;
-        self.render_model(canvas, instance.model, instance_matrix);
+        self.render_model(canvas, instance.model, instance_matrix, texture);
     }
 
-    pub fn render_model<'a, C, M>(
+    pub fn render_model<'a, 'b, C, M>(
         &mut self,
         canvas: &mut C,
         model: &'a M,
         transform_matrix: &Mat4<f32>,
+        texture: Option<&'b Texture>,
     ) where
         C: Canvas,
         M: Model<'a>,
@@ -605,7 +662,7 @@ impl Rasterizer {
         // let transformed_center = &self.view_matrix * Vec4(0.0, 0.0, 0.0, 1.0);
         let transformed_center = Vec4(0.0, 0.0, 0.0, 1.0);
         // let light_direction = &self.view_matrix * Vec4(0.6, -0.1, 1.0, 0.0);
-        let light_direction = Vec4(0.6, -0.1, 1.0, 0.0);
+        let light_direction = Vec4(0.0, 0.4, 1.0, 0.0);
 
         let mut i = 0;
         for (c, t) in model.triangles().enumerate() {
@@ -620,12 +677,13 @@ impl Rasterizer {
                     transformed_center.2,
                 ),
                 Vec3(light_direction.0, light_direction.1, light_direction.2),
-                &final_transform,
+                &(&self.view_matrix * Vec4(0.0, 0.0, 0.0, 1.0)).drop_fourth_component(),
+                // &t.transform(&(&final_transform)),
                 &t.transform(&(&self.view_matrix * transform_matrix)),
+                texture,
                 projected[i].into(),
                 projected[i + 1].into(),
                 projected[i + 2].into(),
-                t.color,
             );
             if c >= 10 {
                 self.is_bottom = false;
