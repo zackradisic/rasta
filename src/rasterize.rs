@@ -1,17 +1,9 @@
-use std::{
-    fmt::Debug,
-    ops::{Add, Div, Mul, Sub},
-};
+use std::fmt::Debug;
 
-use bytemuck::{Pod, Zeroable};
-
-use crate::{
-    canvas::IntoPixelValue,
-    math::{Vec2, Vec3},
-};
+use crate::math::{Vec2, Vec3};
 
 #[repr(C)]
-#[derive(Copy, Clone, Debug, PartialEq, Pod, Zeroable)]
+#[derive(Copy, Clone, Debug, PartialEq, Default)]
 pub struct Color(pub u8, pub u8, pub u8);
 
 impl Color {

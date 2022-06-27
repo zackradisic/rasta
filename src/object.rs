@@ -5,6 +5,7 @@ use std::{
 };
 
 use crate::{
+    light::Shading,
     math::{Mat4, Radians, Vec2, Vec3, Vec4},
     rasterize::Color,
     texture::Texture,
@@ -17,6 +18,7 @@ pub struct InstanceBuilder<'a, M: Model<'a>> {
     scale: Option<Vec3<f32>>,
     rotation_y: Option<Radians>,
     color: Option<Color>,
+    shading: Option<Shading>,
 }
 
 impl<'a, M: Model<'a>> InstanceBuilder<'a, M> {
@@ -27,6 +29,7 @@ impl<'a, M: Model<'a>> InstanceBuilder<'a, M> {
             scale: None,
             rotation_y: None,
             color: None,
+            shading: None,
         }
     }
 
@@ -50,6 +53,11 @@ impl<'a, M: Model<'a>> InstanceBuilder<'a, M> {
         self
     }
 
+    pub fn shading(mut self, s: Shading) -> Self {
+        self.shading = Some(s);
+        self
+    }
+
     pub fn build(self) -> Instance<'a, M> {
         let pos = self.pos.unwrap_or_else(|| Vec3(0.0, 0.0, 0.0));
         let scale = self.scale.unwrap_or_else(|| Vec3(1.0, 1.0, 1.0));
@@ -64,6 +72,7 @@ impl<'a, M: Model<'a>> InstanceBuilder<'a, M> {
             scale,
             rotation_y,
             color: self.color.unwrap_or(Color(0, 0, 0)),
+            shading: self.shading.unwrap_or_default(),
             transform_matrix,
             matrix_needs_update: false,
         }
@@ -76,6 +85,7 @@ pub struct Instance<'a, M: Model<'a>> {
     pos: Vec3<f32>,
     scale: Vec3<f32>,
     rotation_y: Radians,
+    shading: Shading,
     color: Color,
 
     matrix_needs_update: bool,
@@ -116,6 +126,10 @@ impl<'a, M: Model<'a>> Instance<'a, M> {
         self.matrix_needs_update = true;
     }
 
+    pub fn shading(&self) -> Shading {
+        self.shading
+    }
+
     fn build_transform_matrix(pos: Vec3<f32>, scale: Vec3<f32>, rotation_y: Radians) -> Mat4<f32> {
         Mat4::translate(pos)
             * Mat4::rotate_y_axis(rotation_y, Vec3(0.0, 0.0, 0.0))
@@ -143,16 +157,24 @@ pub struct Triangle {
     pub p1: Vec3<f32>,
     pub p2: Vec3<f32>,
     pub color: Color,
-    pub uvs: Option<[Vec2<f32>; 3]>,
+    pub uvs: Option<Box<[Vec2<f32>; 3]>>,
+    pub normals: Option<Box<[Vec3<f32>; 3]>>,
 }
 
 impl Triangle {
-    pub fn new(p0: Vec3<f32>, p1: Vec3<f32>, p2: Vec3<f32>, color: Color) -> Self {
+    pub fn new(
+        p0: Vec3<f32>,
+        p1: Vec3<f32>,
+        p2: Vec3<f32>,
+        color: Color,
+        normals: Option<[Vec3<f32>; 3]>,
+    ) -> Self {
         Self {
             p0,
             p1,
             p2,
             color,
+            normals: normals.map(Box::new),
             uvs: None,
         }
     }
@@ -162,21 +184,23 @@ impl Triangle {
         p1: Vec3<f32>,
         p2: Vec3<f32>,
         uvs: [V; 3],
+        normals: Option<[Vec3<f32>; 3]>,
     ) -> Self {
         Self {
             p0,
             p1,
             p2,
             color: Color(0, 0, 0),
-            uvs: Some([
+            uvs: Some(Box::new([
                 uvs[0].clone().into(),
                 uvs[1].clone().into(),
                 uvs[2].clone().into(),
-            ]),
+            ])),
+            normals: normals.map(Box::new),
         }
     }
 
-    pub fn transform(&self, m: &Mat4<f32>) -> Self {
+    pub fn transform(&self, m: &Mat4<f32>, view_proj: &Mat4<f32>) -> Self {
         let p0 = m * Vec4(self.p0.0, self.p0.1, self.p0.2, 1.0);
         let p1 = m * Vec4(self.p1.0, self.p1.1, self.p1.2, 1.0);
         let p2 = m * Vec4(self.p2.0, self.p2.1, self.p2.2, 1.0);
@@ -186,6 +210,14 @@ impl Triangle {
             p2: Vec3(p2.0, p2.1, p2.2),
             color: self.color,
             uvs: self.uvs.clone(),
+            normals: self.normals.clone().map(|normals| {
+                Box::new([
+                    (view_proj * normals[0].to_point_vec4()).drop_fourth_component(),
+                    (view_proj * normals[1].to_point_vec4()).drop_fourth_component(),
+                    (view_proj * normals[2].to_point_vec4()).drop_fourth_component(),
+                ])
+            }),
+            // normals: self.normals.clone(),
         }
     }
 
@@ -333,23 +365,23 @@ impl<'a> Cube<'a> {
     ) -> [Triangle; 12] {
         [
             // front
-            Triangle::new(ftl.clone(), fbl.clone(), fbr.clone(), front),
-            Triangle::new(ftr.clone(), ftl.clone(), fbr.clone(), front),
+            Triangle::new(ftl.clone(), fbl.clone(), fbr.clone(), front, None),
+            Triangle::new(ftr.clone(), ftl.clone(), fbr.clone(), front, None),
             // back
-            Triangle::new(btr.clone(), bbr.clone(), bbl.clone(), back),
-            Triangle::new(btl.clone(), btr.clone(), bbl.clone(), back),
+            Triangle::new(btr.clone(), bbr.clone(), bbl.clone(), back, None),
+            Triangle::new(btl.clone(), btr.clone(), bbl.clone(), back, None),
             // left side
-            Triangle::new(ftl.clone(), bbl.clone(), fbl.clone(), left),
-            Triangle::new(btl.clone(), bbl.clone(), ftl.clone(), left),
+            Triangle::new(ftl.clone(), bbl.clone(), fbl.clone(), left, None),
+            Triangle::new(btl.clone(), bbl.clone(), ftl.clone(), left, None),
             // right side
-            Triangle::new(ftr.clone(), fbr.clone(), bbr.clone(), right),
-            Triangle::new(bbr.clone(), btr.clone(), ftr.clone(), right),
+            Triangle::new(ftr.clone(), fbr.clone(), bbr.clone(), right, None),
+            Triangle::new(bbr.clone(), btr.clone(), ftr.clone(), right, None),
             // top
-            Triangle::new(ftl.clone(), ftr.clone(), btr.clone(), top),
-            Triangle::new(btr.clone(), btl.clone(), ftl.clone(), top),
+            Triangle::new(ftl.clone(), ftr.clone(), btr.clone(), top, None),
+            Triangle::new(btr.clone(), btl.clone(), ftl.clone(), top, None),
             // bot
-            Triangle::new(fbr.clone(), fbl.clone(), bbr.clone(), bottom),
-            Triangle::new(bbl.clone(), bbr.clone(), fbl.clone(), bottom),
+            Triangle::new(fbr.clone(), fbl.clone(), bbr.clone(), bottom, None),
+            Triangle::new(bbl.clone(), bbr.clone(), fbl.clone(), bottom, None),
         ]
     }
 
@@ -366,23 +398,23 @@ impl<'a> Cube<'a> {
     ) -> [Triangle; 12] {
         [
             // front
-            Triangle::new_with_uvs(ftl.clone(), fbl.clone(), fbr.clone(), front),
-            Triangle::new_with_uvs(ftr.clone(), ftl.clone(), fbr.clone(), front2),
+            Triangle::new_with_uvs(ftl.clone(), fbl.clone(), fbr.clone(), front, None),
+            Triangle::new_with_uvs(ftr.clone(), ftl.clone(), fbr.clone(), front2, None),
             // back
-            Triangle::new_with_uvs(btr.clone(), bbr.clone(), bbl.clone(), back),
-            Triangle::new_with_uvs(btl.clone(), btr.clone(), bbl.clone(), back2),
+            Triangle::new_with_uvs(btr.clone(), bbr.clone(), bbl.clone(), back, None),
+            Triangle::new_with_uvs(btl.clone(), btr.clone(), bbl.clone(), back2, None),
             // left side
-            Triangle::new_with_uvs(ftl.clone(), bbl.clone(), fbl.clone(), left),
-            Triangle::new_with_uvs(btl.clone(), bbl.clone(), ftl.clone(), left2),
+            Triangle::new_with_uvs(ftl.clone(), bbl.clone(), fbl.clone(), left, None),
+            Triangle::new_with_uvs(btl.clone(), bbl.clone(), ftl.clone(), left2, None),
             // right side
-            Triangle::new_with_uvs(ftr.clone(), fbr.clone(), bbr.clone(), right),
-            Triangle::new_with_uvs(bbr.clone(), btr.clone(), ftr.clone(), right2),
+            Triangle::new_with_uvs(ftr.clone(), fbr.clone(), bbr.clone(), right, None),
+            Triangle::new_with_uvs(bbr.clone(), btr.clone(), ftr.clone(), right2, None),
             // top
-            Triangle::new_with_uvs(ftl.clone(), ftr.clone(), btr.clone(), top),
-            Triangle::new_with_uvs(btr.clone(), btl.clone(), ftl.clone(), top2),
+            Triangle::new_with_uvs(ftl.clone(), ftr.clone(), btr.clone(), top, None),
+            Triangle::new_with_uvs(btr.clone(), btl.clone(), ftl.clone(), top2, None),
             // bot
-            Triangle::new_with_uvs(fbr.clone(), fbl.clone(), bbr.clone(), bottom),
-            Triangle::new_with_uvs(bbl.clone(), bbr.clone(), fbl.clone(), bottom2),
+            Triangle::new_with_uvs(fbr.clone(), fbl.clone(), bbr.clone(), bottom, None),
+            Triangle::new_with_uvs(bbl.clone(), bbr.clone(), fbl.clone(), bottom2, None),
         ]
     }
 }
@@ -396,7 +428,7 @@ pub struct WavefrontModel<'a> {
 
 impl<'a> WavefrontModel<'a> {
     pub fn new(obj: WavefrontObj, outlines: bool) -> Self {
-        let triangles = obj.make_triangles(Color(0, 255, 255), outlines);
+        let triangles = obj.make_triangles(Some(Color(0, 255, 255)), false, false, outlines);
         Self {
             obj,
             triangles,
@@ -404,8 +436,8 @@ impl<'a> WavefrontModel<'a> {
         }
     }
 
-    pub fn new_with_tex(obj: WavefrontObj, texture: &'a Texture) -> Self {
-        let triangles = obj.make_triangles_with_texture();
+    pub fn new_with_tex(obj: WavefrontObj, texture: &'a Texture, normals: bool) -> Self {
+        let triangles = obj.make_triangles(None, true, normals, false);
         Self {
             obj,
             triangles,

@@ -6,8 +6,14 @@ pub enum Light {
     Point(f32, Vec3<f32>),
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Shading {
-    Flat,
     Gourad,
     Phong,
+}
+
+impl Default for Shading {
+    fn default() -> Self {
+        Self::Gourad
+    }
 }

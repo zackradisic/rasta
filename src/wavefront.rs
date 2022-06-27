@@ -8,7 +8,6 @@ use crate::{
     math::{Vec2, Vec3},
     object::Triangle,
     rasterize::Color,
-    texture::Texture,
 };
 
 /// Face can be of the following forms:
@@ -137,7 +136,13 @@ impl WavefrontObj {
 }
 
 impl WavefrontObj {
-    pub fn make_triangles(&self, color: Color, outlines: bool) -> Vec<Triangle> {
+    pub fn make_triangles(
+        &self,
+        color: Option<Color>,
+        textured: bool,
+        normals: bool,
+        outlines: bool,
+    ) -> Vec<Triangle> {
         let mut triangles = vec![];
 
         for Face(indices) in &self.faces {
@@ -150,28 +155,25 @@ impl WavefrontObj {
                 }]
                 .clone(),
                 p2: self.vertices[indices.2 .0 - 1].clone(),
-                color,
-                uvs: None,
-            })
-        }
-
-        triangles
-    }
-
-    pub fn make_triangles_with_texture(&self) -> Vec<Triangle> {
-        let mut triangles = vec![];
-
-        for Face(indices) in &self.faces {
-            triangles.push(Triangle {
-                p0: self.vertices[indices.0 .0 - 1].clone(),
-                p1: self.vertices[indices.1 .0 - 1].clone(),
-                p2: self.vertices[indices.2 .0 - 1].clone(),
-                color: Color(0, 0, 0),
-                uvs: Some([
-                    self.vertex_texture_indices[indices.0 .1.unwrap() - 1].clone(),
-                    self.vertex_texture_indices[indices.1 .1.unwrap() - 1].clone(),
-                    self.vertex_texture_indices[indices.2 .1.unwrap() - 1].clone(),
-                ]),
+                color: color.unwrap_or_default(),
+                normals: if normals {
+                    Some(Box::new([
+                        self.vertex_normal_indices[indices.0 .2.unwrap() - 1].clone(),
+                        self.vertex_normal_indices[indices.1 .2.unwrap() - 1].clone(),
+                        self.vertex_normal_indices[indices.2 .2.unwrap() - 1].clone(),
+                    ]))
+                } else {
+                    None
+                },
+                uvs: if textured {
+                    Some(Box::new([
+                        self.vertex_texture_indices[indices.1 .1.unwrap() - 1].clone(),
+                        self.vertex_texture_indices[indices.2 .1.unwrap() - 1].clone(),
+                        self.vertex_texture_indices[indices.0 .1.unwrap() - 1].clone(),
+                    ]))
+                } else {
+                    None
+                },
             })
         }
 

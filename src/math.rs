@@ -77,6 +77,10 @@ impl Vec3<f32> {
         let mag = self.magnitude();
         Self(self.0 / mag, self.1 / mag, self.2 / mag)
     }
+
+    pub fn to_point_vec4(&self) -> Vec4<f32> {
+        Vec4(self.0, self.1, self.2, 1.0)
+    }
 }
 
 impl<T: Mul<Output = T> + Add<Output = T> + Copy> Vec3<T> {

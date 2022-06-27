@@ -7,7 +7,6 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-bytemuck = { version = "1.9.1", features = ["derive"] }
 log = "0.4"
 image = "0.24.2"
 

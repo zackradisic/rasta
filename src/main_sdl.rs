@@ -6,7 +6,7 @@ use sdl2::{event::Event, keyboard::Keycode, pixels::PixelFormatEnum};
 use crate::{
     canvas::Canvas,
     draw::Rasterizer,
-    light::Light,
+    light::{Light, Shading},
     math::{Degrees, Mat4, Vec3},
     object::{Cube, Instance, Model, Triangle, WavefrontModel},
     rasterize::{Color, Point},
@@ -59,11 +59,12 @@ pub fn main() -> Result<(), String> {
 
     let mut sdl_canvas = SDLCanvas::new(WIDTH, HEIGHT, canvas, texture);
 
-    // let obj = wavefront::WavefrontObj::from_file("./assets/models/truck.obj", 1.0 / 1000.0);
+    // let obj = wavefront::WavefrontObj::from_file("./assets/models/truck.obj", 1.0 / 10000.0);
     // let obj = wavefront::WavefrontObj::from_file("./assets/models/frog.obj", 1.0 / 1000.0);
     let obj = wavefront::WavefrontObj::from_file("./assets/models/helmet.obj", 1.0);
 
-    let truck_model = WavefrontModel::new_with_tex(obj, &helmet_texture);
+    // let helmet_model = WavefrontModel::new(obj, false);
+    let helmet_model = WavefrontModel::new_with_tex(obj, &helmet_texture, true);
 
     let cube = Cube::new_with_texture(
         (-0.5, 0.5, 0.5).into(),
@@ -129,8 +130,9 @@ pub fn main() -> Result<(), String> {
         &shrek_texture,
     );
 
-    let mut truck_instance = Instance::new(&truck_model)
+    let mut truck_instance = Instance::new(&helmet_model)
         .pos((0.0, -0.5, -2.0).into())
+        .shading(Shading::Phong)
         .build();
 
     let mut instances = vec![
@@ -199,7 +201,7 @@ pub fn main() -> Result<(), String> {
                 i.set_pos(i.pos() + Vec3(0.0, delta, -delta));
                 i.update_transform_matrix();
             }
-            // raster.render_instance(&mut sdl_canvas, i, i.model.texture());
+            raster.render_instance(&mut sdl_canvas, i, i.model.texture());
         }
         if !paused {
             truck_instance.set_rotation(Degrees((t as f32 / 30.0) * 20.0));
