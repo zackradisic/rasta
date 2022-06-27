@@ -8,14 +8,17 @@ use crate::{
     draw::Rasterizer,
     light::Light,
     math::{Degrees, Mat4, Vec3},
-    object::{Cube, Instance, Model, Triangle},
+    object::{Cube, Instance, Model, Triangle, WavefrontModel},
     rasterize::{Color, Point},
     sdl_canvas::SDLCanvas,
     texture::Texture,
+    wavefront,
 };
 
-const WIDTH: u32 = 960;
-const HEIGHT: u32 = 540;
+// const WIDTH: u32 = 960;
+// const HEIGHT: u32 = 540;
+const WIDTH: u32 = 1280;
+const HEIGHT: u32 = 720;
 
 fn to_string<T: ToString>(t: T) -> String {
     t.to_string()
@@ -50,27 +53,19 @@ pub fn main() -> Result<(), String> {
         .map_err(to_string)?;
 
     // let shrek_texture = Texture::load("./shrek.png")?;
-    let shrek_texture = Texture::load("./hl2.png")?;
+    let shrek_texture = Texture::load("./assets/textures/diamond_ore.png")?;
+    let rust_texture = Texture::load("./assets/textures/rust-texture.png")?;
+    let helmet_texture = Texture::load("./assets/textures/helmet.jpeg")?;
 
     let mut sdl_canvas = SDLCanvas::new(WIDTH, HEIGHT, canvas, texture);
 
-    // {
-    //     // let mut i = 0;
-    //     for y in 0..img.h {
-    //         for x in 0..img.w {
-    //             let pix = img.pixels[(y * img.w) as usize + x as usize];
-    //             // texture_buf[i] = pix.0;
-    //             // texture_buf[i + 1] = pix.1;
-    //             // texture_buf[i + 2] = pix.2;
-    //             // i += 3;
-    //             sdl_canvas.put_pixel(x as i32, img.h as i32 - y as i32, pix);
-    //         }
+    // let obj = wavefront::WavefrontObj::from_file("./assets/models/truck.obj", 1.0 / 1000.0);
+    // let obj = wavefront::WavefrontObj::from_file("./assets/models/frog.obj", 1.0 / 1000.0);
+    let obj = wavefront::WavefrontObj::from_file("./assets/models/helmet.obj", 1.0);
 
-    //         // i = (y * WIDTH * 3) as usize;
-    //     }
-    // }
+    let truck_model = WavefrontModel::new_with_tex(obj, &helmet_texture);
 
-    let cube = Cube::new(
+    let cube = Cube::new_with_texture(
         (-0.5, 0.5, 0.5).into(),
         (-0.5, -0.5, 0.5).into(),
         (0.5, -0.5, 0.5).into(),
@@ -80,13 +75,26 @@ pub fn main() -> Result<(), String> {
         (0.5, -0.5, -0.5).into(),
         (0.5, 0.5, -0.5).into(),
         [
-            Color(255, 0, 0),
-            Color(0, 255, 0),
-            Color(0, 0, 255),
-            Color(255, 0, 255),
-            Color(255, 255, 0),
-            Color(0, 255, 255),
+            // front
+            [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0)],
+            [(1.0, 0.0), (0.0, 0.0), (1.0, 1.0)],
+            // back
+            [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0)],
+            [(1.0, 0.0), (0.0, 0.0), (1.0, 1.0)],
+            // left
+            [(1.0, 0.0), (0.0, 1.0), (1.0, 1.0)],
+            [(0.0, 0.0), (0.0, 1.0), (1.0, 0.0)],
+            // right
+            [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0)],
+            [(1.0, 1.0), (1.0, 0.0), (0.0, 0.0)],
+            // top
+            [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0)],
+            [(1.0, 1.0), (1.0, 0.0), (0.0, 0.0)],
+            // bot
+            [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0)],
+            [(1.0, 1.0), (1.0, 0.0), (0.0, 0.0)],
         ],
+        &rust_texture,
     );
 
     let textured_cube = Cube::new_with_texture(
@@ -121,9 +129,16 @@ pub fn main() -> Result<(), String> {
         &shrek_texture,
     );
 
+    let mut truck_instance = Instance::new(&truck_model)
+        .pos((0.0, -0.5, -2.0).into())
+        .build();
+
     let mut instances = vec![
-        Instance::new(&cube).pos((-1.0, 0.0, -2.0).into()).build(),
-        Instance::new(&cube).pos((1.0, 0.0, -2.0).into()).build(),
+        Instance::new(&cube)
+            .pos((-1.0, 0.0, -2.0).into())
+            .rotation_y(Degrees(90.0))
+            .build(),
+        // Instance::new(&cube).pos((1.0, 0.0, -2.0).into()).build(),
         Instance::new(&textured_cube)
             .pos((2.0, 0.0, -2.0).into())
             .build(),
@@ -176,87 +191,27 @@ pub fn main() -> Result<(), String> {
         }
         raster.clear(&mut sdl_canvas, Color(21, 20, 28));
 
-        // raster.draw_animated_cube_wireframe(
-        //     &mut sdl_canvas,
-        //     [
-        //         (-2.0, -0.5, 5.0).into(),
-        //         (-2.0, 0.5, 5.0).into(),
-        //         (-1.0, 0.5, 5.0).into(),
-        //         (-1.0, -0.5, 5.0).into(),
-        //     ],
-        //     [
-        //         (-2.0, -0.5, 6.0).into(),
-        //         (-2.0, 0.5, 6.0).into(),
-        //         (-1.0, 0.5, 6.0).into(),
-        //         (-1.0, -0.5, 6.0).into(),
-        //     ],
-        //     t,
-        //     Vec3(-1.5, 0.0, 5.5),
-        // );
-
-        // draw_animated_cube_wireframe(
-        //     &mut sdl_canvas,
-        //     [
-        //         (-2.0 + 0.2, -0.5, 5.0 + 10.0).into(),
-        //         (-2.0 + 0.2, 0.5, 5.0 + 10.0).into(),
-        //         (-1.0 + 0.2, 0.5, 5.0 + 10.0).into(),
-        //         (-1.0 + 0.2, -0.5, 5.0 + 10.0).into(),
-        //     ],
-        //     [
-        //         (-2.0 + 0.2, -0.5, 6.0 + 10.0).into(),
-        //         (-2.0 + 0.2, 0.5, 6.0 + 10.0).into(),
-        //         (-1.0 + 0.2, 0.5, 6.0 + 10.0).into(),
-        //         (-1.0 + 0.2, -0.5, 6.0 + 10.0).into(),
-        //     ],
-        //     (1.0, aspect),
-        //     1.0,
-        //     t,
-        //     Vec3(-1.5 + 0.2, 0.0, 5.5 + 10.0),
-        // );
-
-        // draw_animated_cube_wireframe(
-        //     &mut sdl_canvas,
-        //     [
-        //         (-2.0 + 2.0, -0.5, 5.0 + 2.5).into(),
-        //         (-2.0 + 2.0, 0.5, 5.0 + 2.5).into(),
-        //         (-1.0 + 2.0, 0.5, 5.0 + 2.5).into(),
-        //         (-1.0 + 2.0, -0.5, 5.0 + 2.5).into(),
-        //     ],
-        //     [
-        //         (-2.0 + 2.0, -0.5, 6.0 + 2.5).into(),
-        //         (-2.0 + 2.0, 0.5, 6.0 + 2.5).into(),
-        //         (-1.0 + 2.0, 0.5, 6.0 + 2.5).into(),
-        //         (-1.0 + 2.0, -0.5, 6.0 + 2.5).into(),
-        //     ],
-        //     (1.0, aspect),
-        //     1.0,
-        //     t,
-        //     Vec3(-1.5 + 2.0, 0.0, 5.5 + 2.5),
-        // );
-
-        // raster.render_model(
-        //     &mut sdl_canvas,
-        //     &Triangle {
-        //         p0: (0.0, 0.0, -1.0).into(),
-        //         p1: (1.0, 0.0, -1.0).into(),
-        //         p2: (1.0, 1.0, -1.0).into(),
-        //         color: Color(255, 0, 0),
-        //     },
-        //     &Mat4::identity(),
-        // );
-
         for (c, i) in instances.iter_mut().enumerate() {
             if !paused {
                 let s = if c % 2 == 0 { -1.0 } else { 1.0 };
                 i.set_rotation(Degrees((t as f32 / 30.0) * 20.0 * s));
                 let delta = (t as f32 / 20.0).sin() * 0.05;
                 i.set_pos(i.pos() + Vec3(0.0, delta, -delta));
+                i.update_transform_matrix();
             }
-            i.update_transform_matrix();
-            raster.render_instance(&mut sdl_canvas, i, i.model.texture());
+            // raster.render_instance(&mut sdl_canvas, i, i.model.texture());
         }
-
-        // draw_cube_wireframe_obj(&mut sdl_canvas, &cube, (1.0, aspect), 1.0);
+        if !paused {
+            truck_instance.set_rotation(Degrees((t as f32 / 30.0) * 20.0));
+            let delta = (t as f32 / 20.0).sin() * 0.05;
+            // truck_instance.set_pos(truck_instance.pos() + Vec3(0.0, delta, -delta));
+            truck_instance.update_transform_matrix();
+        }
+        raster.render_instance(
+            &mut sdl_canvas,
+            &truck_instance,
+            truck_instance.model.texture(),
+        );
 
         sdl_canvas.draw();
         if !paused {

@@ -2,6 +2,7 @@ use image::{GenericImageView, ImageFormat};
 
 use crate::rasterize::Color;
 
+#[derive(Debug, Clone)]
 pub struct Texture {
     pixels: Vec<Color>,
     w: u32,

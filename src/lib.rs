@@ -5,6 +5,7 @@ pub mod math;
 pub mod object;
 pub mod rasterize;
 pub mod texture;
+pub mod wavefront;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod main_sdl;

@@ -8,6 +8,7 @@ use crate::{
     math::{Mat4, Radians, Vec2, Vec3, Vec4},
     rasterize::Color,
     texture::Texture,
+    wavefront::WavefrontObj,
 };
 
 pub struct InstanceBuilder<'a, M: Model<'a>> {
@@ -384,4 +385,63 @@ impl<'a> Cube<'a> {
             Triangle::new_with_uvs(bbl.clone(), bbr.clone(), fbl.clone(), bottom2),
         ]
     }
+}
+
+#[derive(Clone, Debug)]
+pub struct WavefrontModel<'a> {
+    obj: WavefrontObj,
+    triangles: Vec<Triangle>,
+    texture: Option<&'a Texture>,
+}
+
+impl<'a> WavefrontModel<'a> {
+    pub fn new(obj: WavefrontObj, outlines: bool) -> Self {
+        let triangles = obj.make_triangles(Color(0, 255, 255), outlines);
+        Self {
+            obj,
+            triangles,
+            texture: None,
+        }
+    }
+
+    pub fn new_with_tex(obj: WavefrontObj, texture: &'a Texture) -> Self {
+        let triangles = obj.make_triangles_with_texture();
+        Self {
+            obj,
+            triangles,
+            texture: Some(texture),
+        }
+    }
+}
+
+impl<'a> Model<'a> for WavefrontModel<'a> {
+    type VertexIter = Flatten<
+        Map<
+            Iter<'a, Triangle>,
+            for<'r> fn(
+                &'r Triangle,
+            ) -> std::iter::Chain<
+                std::iter::Chain<std::iter::Once<&Vec3<f32>>, std::iter::Once<&Vec3<f32>>>,
+                std::iter::Once<&Vec3<f32>>,
+            >,
+        >,
+    >;
+
+    type TriangleIter = Iter<'a, Triangle>;
+
+    fn vertices(&'a self) -> Self::VertexIter {
+        self.triangles.iter().map(triangle_vertices as _).flatten()
+    }
+
+    fn triangles(&'a self) -> Self::TriangleIter {
+        self.triangles.iter()
+    }
+
+    fn texture(&'a self) -> Option<&'a Texture> {
+        self.texture
+    }
+}
+
+fn triangle_vertices(t: &Triangle) -> <Triangle as Model>::VertexIter {
+    t.vertices()
 }

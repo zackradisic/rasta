@@ -7,17 +7,6 @@ use crate::{
     texture::Texture,
 };
 
-enum ColorOrTexture<'a> {
-    Color(Color),
-    Texture(&'a Texture),
-}
-
-impl<'a> ColorOrTexture<'a> {
-    fn is_texture(&self) -> bool {
-        matches!(self, Self::Texture(_))
-    }
-}
-
 pub struct Rasterizer {
     cw: f32,
     ch: f32,
@@ -339,9 +328,6 @@ impl Rasterizer {
             let i1 = i1 as usize;
             let i2 = i2 as usize;
             let (u02, u012) = Self::triangle_interpolate(
-                // p0.y, p1.y, p2.y, uvs[i0].0, //* z0,
-                // uvs[i1].0, //* z1,
-                // uvs[i2].0, //* z2,
                 p0.y,
                 p1.y,
                 p2.y,
@@ -350,9 +336,6 @@ impl Rasterizer {
                 uvs[i2].0 * z2,
             );
             let (v02, v012) = Self::triangle_interpolate(
-                // p0.y, p1.y, p2.y, uvs[i0].1, //* z0,
-                // uvs[i1].1, //* z1,
-                // uvs[i2].1, //* z2,
                 p0.y,
                 p1.y,
                 p2.y,
@@ -405,6 +388,7 @@ impl Rasterizer {
                     };
                 let illuminated_color =
                     Color::from_vec3_f32s(&color.to_vec3_f32s() * iscan[(x - xl) as usize]);
+                // let illuminated_color = color;
 
                 self.put_pixel(canvas, x, y, inverse_z, illuminated_color);
                 // self.put_pixel(canvas, x, y, zscan[(x - xl) as usize], color);

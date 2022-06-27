@@ -43,51 +43,6 @@ pub fn start() {
 
     wasm_canvas.clear(Color(21, 20, 28));
 
-    // draw_shaded_line(
-    //     &mut wasm_canvas,
-    //     (Point::new(-50.0, -200.0), Color(0, 255, 0)),
-    //     (Point::new(60.0, 240.0), Color(0, 0, 255)),
-    // );
-
-    // draw_shaded_line(
-    //     &mut wasm_canvas,
-    //     (Point::new(-150.0, -200.0), Color(255, 0, 0)),
-    //     (Point::new(-40.0, 240.0), Color(0, 0, 255)),
-    // );
-
-    // draw_line(
-    //     &mut wasm_canvas,
-    //     Point::new(0.0, 0.0),
-    //     Point::new(420.0, 420.0),
-    //     Color(255, 0, 0),
-    // );
-
-    // draw_shaded_triangle(
-    //     &mut wasm_canvas,
-    //     (Point::new(-200.0, -250.0), Color(255, 0, 0)),
-    //     (Point::new(200.0, 50.0), Color(0, 255, 0)),
-    //     (Point::new(20.0, 250.0), Color(0, 20, 255)),
-    // );
-
-    // let aspect = wasm_canvas.height() as f32 / wasm_canvas.width() as f32;
-    // draw_cube_wireframe(
-    //     &mut wasm_canvas,
-    //     [
-    //         (-2.0, -0.5, 5.0).into(),
-    //         (-2.0, 0.5, 5.0).into(),
-    //         (-1.0, 0.5, 5.0).into(),
-    //         (-1.0, -0.5, 5.0).into(),
-    //     ],
-    //     [
-    //         (-2.0, -0.5, 6.0).into(),
-    //         (-2.0, 0.5, 6.0).into(),
-    //         (-1.0, 0.5, 6.0).into(),
-    //         (-1.0, -0.5, 6.0).into(),
-    //     ],
-    //     (1.0, aspect),
-    //     1.0,
-    // );
-
     let shrek = include_bytes!("../shrek.png");
     let rust = include_bytes!("../rust-texture.png");
     let dia = include_bytes!("../diamond_ore.png");
@@ -267,66 +222,6 @@ pub fn start() {
             .clear(&mut wasm_canvas, Color(21, 20, 28));
 
         let t = *t_cell.borrow();
-
-        // draw_animated_cube_wireframe(
-        //     &mut wasm_canvas,
-        //     [
-        //         (-2.0, -0.5, 5.0).into(),
-        //         (-2.0, 0.5, 5.0).into(),
-        //         (-1.0, 0.5, 5.0).into(),
-        //         (-1.0, -0.5, 5.0).into(),
-        //     ],
-        //     [
-        //         (-2.0, -0.5, 6.0).into(),
-        //         (-2.0, 0.5, 6.0).into(),
-        //         (-1.0, 0.5, 6.0).into(),
-        //         (-1.0, -0.5, 6.0).into(),
-        //     ],
-        //     (1.0, aspect),
-        //     01.0,
-        //     t,
-        //     Vec3(-1.5, 0.0, 5.5),
-        // );
-
-        // draw_animated_cube_wireframe(
-        //     &mut wasm_canvas,
-        //     [
-        //         (-2.0 + 0.2, -0.5, 5.0 + 10.0).into(),
-        //         (-2.0 + 0.2, 0.5, 5.0 + 10.0).into(),
-        //         (-1.0 + 0.2, 0.5, 5.0 + 10.0).into(),
-        //         (-1.0 + 0.2, -0.5, 5.0 + 10.0).into(),
-        //     ],
-        //     [
-        //         (-2.0 + 0.2, -0.5, 6.0 + 10.0).into(),
-        //         (-2.0 + 0.2, 0.5, 6.0 + 10.0).into(),
-        //         (-1.0 + 0.2, 0.5, 6.0 + 10.0).into(),
-        //         (-1.0 + 0.2, -0.5, 6.0 + 10.0).into(),
-        //     ],
-        //     (1.0, aspect),
-        //     1.0,
-        //     t,
-        //     Vec3(-1.5 + 0.2, 0.0, 5.5 + 10.0),
-        // );
-
-        // draw_animated_cube_wireframe(
-        //     &mut wasm_canvas,
-        //     [
-        //         (-2.0 + 2.0, -0.5, 5.0 + 2.5).into(),
-        //         (-2.0 + 2.0, 0.5, 5.0 + 2.5).into(),
-        //         (-1.0 + 2.0, 0.5, 5.0 + 2.5).into(),
-        //         (-1.0 + 2.0, -0.5, 5.0 + 2.5).into(),
-        //     ],
-        //     [
-        //         (-2.0 + 2.0, -0.5, 6.0 + 2.5).into(),
-        //         (-2.0 + 2.0, 0.5, 6.0 + 2.5).into(),
-        //         (-1.0 + 2.0, 0.5, 6.0 + 2.5).into(),
-        //         (-1.0 + 2.0, -0.5, 6.0 + 2.5).into(),
-        //     ],
-        //     (1.0, aspect),
-        //     1.0,
-        //     t,
-        //     Vec3(-1.5 + 2.0, 0.0, 5.5 + 2.5),
-        // );
 
         for (c, i) in instances.iter_mut().enumerate() {
             // if i.model.texture().is_none() {
