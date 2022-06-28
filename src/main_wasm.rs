@@ -5,12 +5,13 @@ use wasm_bindgen::{prelude::*, JsCast};
 use crate::{
     canvas::Canvas,
     draw::Rasterizer,
-    light::Light,
+    light::{Light, Shading},
     math::{Degrees, Mat4, Vec3},
-    object::{Cube, Instance, Model},
+    object::{Cube, Instance, Model, WavefrontModel},
     rasterize::Color,
     texture::Texture,
     wasm_canvas::WasmCanvas,
+    wavefront,
 };
 
 fn request_animation_frame(f: &Closure<dyn FnMut()>) {
@@ -41,20 +42,37 @@ pub fn start() {
 
     let mut wasm_canvas = WasmCanvas::new(canvas, context);
 
-    wasm_canvas.clear(Color(21, 20, 28));
-
-    let shrek = include_bytes!("../shrek.png");
-    let rust = include_bytes!("../rust-texture.png");
-    let dia = include_bytes!("../diamond_ore.png");
-    // let shrek = include_bytes!("../crate-texture.jpg");
-    let texture: &Texture = Box::leak(Box::new(
-        Texture::from_bytes(shrek, image::ImageFormat::Png).unwrap(),
-    ));
-    let rust_tex: &Texture = Box::leak(Box::new(
+    let dia = include_bytes!("../assets/textures/diamond_ore.png");
+    let rust = include_bytes!("../assets/textures/rust-texture.png");
+    let rust_texture: &Texture = Box::leak(Box::new(
         Texture::from_bytes(rust, image::ImageFormat::Png).unwrap(),
     ));
-    let dia_tex: &Texture = Box::leak(Box::new(
+    let dia_texture: &Texture = Box::leak(Box::new(
         Texture::from_bytes(dia, image::ImageFormat::Png).unwrap(),
+    ));
+    let helmet_texture: &Texture = Box::leak(Box::new(
+        Texture::from_bytes(
+            include_bytes!("../assets/textures/helmet.jpeg"),
+            image::ImageFormat::Jpeg,
+        )
+        .unwrap(),
+    ));
+
+    let helmet_model = include_bytes!("../assets/models/helmet.obj");
+    let obj = wavefront::WavefrontObj::from_reader(helmet_model.as_ref(), 1.0);
+
+    // let helmet_model = WavefrontModel::new(obj, Color(200, 200, 0), false);
+    let helmet_model = Box::leak(Box::new(WavefrontModel::new_with_tex(
+        obj,
+        &helmet_texture,
+        true,
+    )));
+
+    let helmet_instance = Box::leak(Box::new(
+        Instance::new(helmet_model)
+            .pos((0.0, -0.5, -1.0).into())
+            // .shading(Shading::Phong)
+            .build(),
     ));
 
     let raf_cell = Rc::new(RefCell::new(None));
@@ -87,55 +105,6 @@ pub fn start() {
         ],
     )));
 
-    let cube = Cube::new(
-        (-0.5, 0.5, 0.5).into(),
-        (-0.5, -0.5, 0.5).into(),
-        (0.5, -0.5, 0.5).into(),
-        (0.5, 0.5, 0.5).into(),
-        (-0.5, 0.5, -0.5).into(),
-        (-0.5, -0.5, -0.5).into(),
-        (0.5, -0.5, -0.5).into(),
-        (0.5, 0.5, -0.5).into(),
-        [
-            Color(255, 0, 0),
-            Color(0, 255, 0),
-            Color(0, 0, 255),
-            Color(255, 0, 255),
-            Color(255, 255, 0),
-            Color(0, 255, 255),
-        ],
-    );
-    let textured_cube = Box::leak(Box::new(Cube::new_with_texture(
-        (-0.5, 0.5, 0.5).into(),
-        (-0.5, -0.5, 0.5).into(),
-        (0.5, -0.5, 0.5).into(),
-        (0.5, 0.5, 0.5).into(),
-        (-0.5, 0.5, -0.5).into(),
-        (-0.5, -0.5, -0.5).into(),
-        (0.5, -0.5, -0.5).into(),
-        (0.5, 0.5, -0.5).into(),
-        [
-            // front
-            [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0)],
-            [(1.0, 0.0), (0.0, 0.0), (1.0, 1.0)],
-            // back
-            [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0)],
-            [(1.0, 0.0), (0.0, 0.0), (1.0, 1.0)],
-            // left
-            [(1.0, 0.0), (0.0, 1.0), (1.0, 1.0)],
-            [(0.0, 0.0), (0.0, 1.0), (1.0, 0.0)],
-            // right
-            [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0)],
-            [(1.0, 1.0), (1.0, 0.0), (0.0, 0.0)],
-            // top
-            [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0)],
-            [(1.0, 1.0), (1.0, 0.0), (0.0, 0.0)],
-            // bot
-            [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0)],
-            [(1.0, 1.0), (1.0, 0.0), (0.0, 0.0)],
-        ],
-        &texture,
-    )));
     let rust_textured_cube = Box::leak(Box::new(Cube::new_with_texture(
         (-0.5, 0.5, 0.5).into(),
         (-0.5, -0.5, 0.5).into(),
@@ -165,8 +134,9 @@ pub fn start() {
             [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0)],
             [(1.0, 1.0), (1.0, 0.0), (0.0, 0.0)],
         ],
-        &rust_tex,
+        &rust_texture,
     )));
+
     let dia_textured_cube = Box::leak(Box::new(Cube::new_with_texture(
         (-0.5, 0.5, 0.5).into(),
         (-0.5, -0.5, 0.5).into(),
@@ -196,48 +166,44 @@ pub fn start() {
             [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0)],
             [(1.0, 1.0), (1.0, 0.0), (0.0, 0.0)],
         ],
-        &dia_tex,
+        &dia_texture,
     )));
-    let cube: &Cube = Box::leak(Box::new(cube));
 
     let mut instances = vec![
-        Instance::new(cube).pos((-1.5, -1.0, -5.0).into()).build(),
-        // Instance::new(cube).pos((1.0, 0.0, 0.0).into()).build(),
-        Instance::new(textured_cube)
-            .pos((1.5, -2.0, -3.0).into())
-            .build(),
         Instance::new(rust_textured_cube)
             .pos((0.0, 0.0, 0.0).into())
+            // .shading(Shading::Phong)
             .build(),
         Instance::new(dia_textured_cube)
             .pos((-3.0, -1.0, -3.5).into())
+            // .shading(Shading::Phong)
             .build(),
     ];
 
-    let identity = Mat4::identity();
-
     *raf.borrow_mut() = Some(Closure::wrap(Box::new(move || {
-        raster
-            .borrow_mut()
-            .clear(&mut wasm_canvas, Color(21, 20, 28));
+        let mut raster = raster.borrow_mut();
+        raster.clear(&mut wasm_canvas, Color(21, 20, 28));
 
         let t = *t_cell.borrow();
 
         for (c, i) in instances.iter_mut().enumerate() {
-            // if i.model.texture().is_none() {
             let s = if c % 2 == 0 { 1.0 } else { 1.0 };
             i.set_rotation(Degrees((t as f32 / 30.0) * 13.0 * s));
             let delta = (t as f32 / 120.0).sin() * 0.0045;
             i.set_pos(i.pos() + Vec3(0.0, delta, -delta + delta));
             i.update_transform_matrix();
-            // }
-            raster
-                .borrow_mut()
-                .render_instance(&mut wasm_canvas, i, i.model.texture());
+            raster.render_instance(&mut wasm_canvas, i, i.model.texture());
         }
 
-        wasm_canvas.draw();
+        helmet_instance.set_rotation(Degrees((t as f32 / 30.0) * 13.0));
+        helmet_instance.update_transform_matrix();
+        raster.render_instance(
+            &mut wasm_canvas,
+            &helmet_instance,
+            helmet_instance.model.texture(),
+        );
 
+        wasm_canvas.draw();
         *t_cell.borrow_mut() += 1;
         request_animation_frame(raf_cell.borrow().as_ref().unwrap())
     }) as Box<dyn FnMut()>));

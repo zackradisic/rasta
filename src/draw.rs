@@ -1,3 +1,5 @@
+use std::ops::{Add, Mul};
+
 use crate::{
     canvas::{canvas_coords_to_screen_coords, Canvas, IntoPixelValue},
     lerp::{triangle_lerp, triangle_lerp_and_calculate_left, Lerp},
@@ -44,7 +46,7 @@ impl Rasterizer {
             unproject_matrix: &view_matrix.invert().unwrap() * projection_matrix.invert().unwrap(),
             view_matrix,
             lights,
-            shading: Shading::default(),
+            shading: Shading::Phong,
         }
     }
 
@@ -694,7 +696,7 @@ impl Rasterizer {
         let transformed_center = Vec4(0.0, 0.0, 0.0, 1.0);
         // let light_direction = &self.view_matrix * Vec4(0.6, -0.1, 1.0, 0.0);
         let light_direction = if self.shading == Shading::Phong {
-            Vec4(1.5, -1.0, 1.0, 0.0)
+            Vec4(-1.5, -1.0, 1.0, 0.0)
         } else {
             Vec4(0.0, 0.4, 1.0, 0.0)
         };

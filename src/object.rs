@@ -421,16 +421,14 @@ impl<'a> Cube<'a> {
 
 #[derive(Clone, Debug)]
 pub struct WavefrontModel<'a> {
-    obj: WavefrontObj,
     triangles: Vec<Triangle>,
     texture: Option<&'a Texture>,
 }
 
 impl<'a> WavefrontModel<'a> {
-    pub fn new(obj: WavefrontObj, outlines: bool) -> Self {
-        let triangles = obj.make_triangles(Some(Color(0, 255, 255)), false, false, outlines);
+    pub fn new(obj: WavefrontObj, color: Color, outlines: bool) -> Self {
+        let triangles = obj.make_triangles(Some(color), false, false, outlines);
         Self {
-            obj,
             triangles,
             texture: None,
         }
@@ -439,7 +437,6 @@ impl<'a> WavefrontModel<'a> {
     pub fn new_with_tex(obj: WavefrontObj, texture: &'a Texture, normals: bool) -> Self {
         let triangles = obj.make_triangles(None, true, normals, false);
         Self {
-            obj,
             triangles,
             texture: Some(texture),
         }

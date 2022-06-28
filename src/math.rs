@@ -81,6 +81,10 @@ impl Vec3<f32> {
     pub fn to_point_vec4(&self) -> Vec4<f32> {
         Vec4(self.0, self.1, self.2, 1.0)
     }
+
+    pub fn component_wise_mul(&self, rhs: &Vec3<f32>) -> Vec3<f32> {
+        Vec3(self.0 * rhs.0, self.1 * rhs.1, self.2 * rhs.2)
+    }
 }
 
 impl<T: Mul<Output = T> + Add<Output = T> + Copy> Vec3<T> {

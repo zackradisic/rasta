@@ -59,11 +59,10 @@ pub fn main() -> Result<(), String> {
 
     let mut sdl_canvas = SDLCanvas::new(WIDTH, HEIGHT, canvas, texture);
 
-    // let obj = wavefront::WavefrontObj::from_file("./assets/models/truck.obj", 1.0 / 10000.0);
-    // let obj = wavefront::WavefrontObj::from_file("./assets/models/frog.obj", 1.0 / 1000.0);
+    // let obj = wavefront::WavefrontObj::from_file("./assets/models/homer.obj", 1.0);
     let obj = wavefront::WavefrontObj::from_file("./assets/models/helmet.obj", 1.0);
 
-    // let helmet_model = WavefrontModel::new(obj, true);
+    // let helmet_model = WavefrontModel::new(obj, Color(200, 200, 0), false);
     let helmet_model = WavefrontModel::new_with_tex(obj, &helmet_texture, true);
 
     let cube = Cube::new_with_texture(
@@ -131,7 +130,7 @@ pub fn main() -> Result<(), String> {
     );
 
     let mut truck_instance = Instance::new(&helmet_model)
-        .pos((0.0, -0.5, -2.0).into())
+        .pos((0.0, -0.5, -1.0).into())
         .shading(Shading::Phong)
         .build();
 

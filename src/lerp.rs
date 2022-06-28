@@ -91,7 +91,6 @@ pub struct Lerp {
     i0: f32,
     d0: f32,
     i1: f32,
-    d1: f32,
     a: f32,
 }
 
@@ -101,7 +100,6 @@ impl Lerp {
             i0,
             d0,
             i1,
-            d1,
             a: (d1 - d0) / (i1 - i0),
         }
     }
