@@ -63,7 +63,7 @@ pub fn main() -> Result<(), String> {
     // let obj = wavefront::WavefrontObj::from_file("./assets/models/frog.obj", 1.0 / 1000.0);
     let obj = wavefront::WavefrontObj::from_file("./assets/models/helmet.obj", 1.0);
 
-    // let helmet_model = WavefrontModel::new(obj, false);
+    // let helmet_model = WavefrontModel::new(obj, true);
     let helmet_model = WavefrontModel::new_with_tex(obj, &helmet_texture, true);
 
     let cube = Cube::new_with_texture(
@@ -137,12 +137,14 @@ pub fn main() -> Result<(), String> {
 
     let mut instances = vec![
         Instance::new(&cube)
-            .pos((-1.0, 0.0, -2.0).into())
+            .pos((-2.0, -1.0, -5.0).into())
             .rotation_y(Degrees(90.0))
+            .shading(Shading::Phong)
             .build(),
         // Instance::new(&cube).pos((1.0, 0.0, -2.0).into()).build(),
         Instance::new(&textured_cube)
-            .pos((2.0, 0.0, -2.0).into())
+            .pos((-4.0, -1.0, -5.0).into())
+            .shading(Shading::Phong)
             .build(),
     ];
 
@@ -191,32 +193,29 @@ pub fn main() -> Result<(), String> {
                 _ => {}
             }
         }
-        raster.clear(&mut sdl_canvas, Color(21, 20, 28));
 
-        for (c, i) in instances.iter_mut().enumerate() {
-            if !paused {
+        if !paused {
+            raster.clear(&mut sdl_canvas, Color(21, 20, 28));
+
+            for (c, i) in instances.iter_mut().enumerate() {
                 let s = if c % 2 == 0 { -1.0 } else { 1.0 };
                 i.set_rotation(Degrees((t as f32 / 30.0) * 20.0 * s));
-                let delta = (t as f32 / 20.0).sin() * 0.05;
-                i.set_pos(i.pos() + Vec3(0.0, delta, -delta));
+                let delta = (t as f32 / 20.0).sin() * 0.02;
+                i.set_pos(i.pos() + Vec3(0.0, delta, -delta + delta));
                 i.update_transform_matrix();
+                raster.render_instance(&mut sdl_canvas, i, i.model.texture());
             }
-            raster.render_instance(&mut sdl_canvas, i, i.model.texture());
-        }
-        if !paused {
             truck_instance.set_rotation(Degrees((t as f32 / 30.0) * 20.0));
             let delta = (t as f32 / 20.0).sin() * 0.05;
             // truck_instance.set_pos(truck_instance.pos() + Vec3(0.0, delta, -delta));
             truck_instance.update_transform_matrix();
-        }
-        raster.render_instance(
-            &mut sdl_canvas,
-            &truck_instance,
-            truck_instance.model.texture(),
-        );
+            raster.render_instance(
+                &mut sdl_canvas,
+                &truck_instance,
+                truck_instance.model.texture(),
+            );
 
-        sdl_canvas.draw();
-        if !paused {
+            sdl_canvas.draw();
             t += 1;
         }
         std::thread::sleep(time::Duration::from_millis(16));

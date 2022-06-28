@@ -1,5 +1,6 @@
 use crate::{
     canvas::{canvas_coords_to_screen_coords, Canvas, IntoPixelValue},
+    lerp::{triangle_lerp, triangle_lerp_and_calculate_left, Lerp},
     light::{Light, Shading},
     math::{Degrees, Mat4, Vec2, Vec3, Vec4},
     object::{Cube, Instance, Model, Triangle},
@@ -137,7 +138,7 @@ impl Rasterizer {
             return vec![d0 as f32];
         }
 
-        let mut ret = vec![];
+        let mut ret = Vec::with_capacity((i1 - i0).ceil() as usize);
 
         let a = (d1 - d0) / (i1 - i0);
         let mut d: f32 = d0 as f32;
@@ -318,11 +319,7 @@ impl Rasterizer {
         }
         let (v0, v1, v2) = (&triangle[i0], &triangle[i1], &triangle[i2]);
 
-        let (z0, z1, z2) = (
-            1.0 / triangle[i0].2,
-            1.0 / triangle[i1].2,
-            1.0 / triangle[i2].2,
-        );
+        let (z0, z1, z2) = (triangle[i0].2, triangle[i1].2, triangle[i2].2);
 
         let normal = triangle.normal().normalize();
         let (n0, n1, n2) = triangle
@@ -347,125 +344,100 @@ impl Rasterizer {
         );
 
         // Compute x of triangle edges
-        let (x02, x012) = Self::triangle_interpolate(p0.y, p1.y, p2.y, p0.x, p1.x, p2.x);
+        let (x_left, x_right, x02_is_left) =
+            triangle_lerp_and_calculate_left(p0.y, p1.y, p2.y, p0.x, p1.x, p2.x);
         // Compute interpolated z coordinates for depth buffer
-        let (z02, z012) = Self::triangle_interpolate(p0.y, p1.y, p2.y, z0, z1, z2);
+        let (z_left, z_right) =
+            triangle_lerp(p0.y, p1.y, p2.y, 1.0 / z0, 1.0 / z1, 1.0 / z2, x02_is_left);
         // Compute points for Gouraud shading
         let illu0 = Self::compute_illumination(v0.clone(), camera_pos, normal.clone(), &light);
         let illu1 = Self::compute_illumination(v1.clone(), camera_pos, normal.clone(), &light);
         let illu2 = Self::compute_illumination(v2.clone(), camera_pos, normal.clone(), &light);
-        let (i02, i012) = Self::triangle_interpolate(p0.y, p1.y, p2.y, illu0, illu1, illu2);
+        let (i_left, i_right) = triangle_lerp(p0.y, p1.y, p2.y, illu0, illu1, illu2, x02_is_left);
         // Compute points for phong shading
-        let (nx02, nx012) = Self::triangle_interpolate(p0.y, p1.y, p2.y, n0.0, n1.0, n2.0);
-        let (ny02, ny012) = Self::triangle_interpolate(p0.y, p1.y, p2.y, n0.1, n1.1, n2.1);
-        let (nz02, nz012) = Self::triangle_interpolate(p0.y, p1.y, p2.y, n0.2, n1.2, n2.2);
+        let (nx_left, nx_right) = triangle_lerp(p0.y, p1.y, p2.y, n0.0, n1.0, n2.0, x02_is_left);
+        let (ny_left, ny_right) = triangle_lerp(p0.y, p1.y, p2.y, n0.1, n1.1, n2.1, x02_is_left);
+        let (nz_left, nz_right) = triangle_lerp(p0.y, p1.y, p2.y, n0.2, n1.2, n2.2, x02_is_left);
         // Compute uv for texture
-        let (u02, u012, v02, v012) = if let Some(uvs) = &triangle.uvs {
+        let (u_left, u_right, v_left, v_right) = if let Some(uvs) = &triangle.uvs {
             let i0 = i0 as usize;
             let i1 = i1 as usize;
             let i2 = i2 as usize;
-            let (u02, u012) = Self::triangle_interpolate(
+            let (u02, u012) = triangle_lerp(
                 p0.y,
                 p1.y,
                 p2.y,
-                uvs[i0].0 * z0,
-                uvs[i1].0 * z1,
-                uvs[i2].0 * z2,
+                uvs[i0].0 / z0,
+                uvs[i1].0 / z1,
+                uvs[i2].0 / z2,
+                x02_is_left,
             );
-            let (v02, v012) = Self::triangle_interpolate(
+            let (v02, v012) = triangle_lerp(
                 p0.y,
                 p1.y,
                 p2.y,
-                uvs[i0].1 * z0,
-                uvs[i1].1 * z1,
-                uvs[i2].1 * z2,
+                uvs[i0].1 * (1.0 / z0),
+                uvs[i1].1 * (1.0 / z1),
+                uvs[i2].1 * (1.0 / z2),
+                x02_is_left,
             );
             (u02, u012, v02, v012)
         } else {
-            (vec![], vec![], vec![], vec![])
-        };
-
-        // Determine which is left and which is right
-        let m = x02.len() / 2;
-        let (
-            x_left,
-            x_right,
-            z_left,
-            z_right,
-            i_left,
-            i_right,
-            u_left,
-            u_right,
-            v_left,
-            v_right,
-            nx_left,
-            nx_right,
-            ny_left,
-            ny_right,
-            nz_left,
-            nz_right,
-        ) = if x02[m] < x012[m] {
             (
-                x02, x012, z02, z012, i02, i012, u02, u012, v02, v012, nx02, nx012, ny02, ny012,
-                nz02, nz012,
-            )
-        } else {
-            (
-                x012, x02, z012, z02, i012, i02, u012, u02, v012, v02, nx012, nx02, ny012, ny02,
-                nz012, nz02,
+                Default::default(),
+                Default::default(),
+                Default::default(),
+                Default::default(),
             )
         };
 
         // Draw
         let mut y = p0.y;
         while y <= p2.y {
-            let i = (y - p0.y) as usize;
-            let (xl, xr) = (x_left[i], x_right[i]);
+            let (xl, xr) = (x_left.interpolate(y), x_right.interpolate(y));
 
-            let zscan = Self::interpolate(xl, z_left[i], xr, z_right[i]);
-            let iscan = Self::interpolate(xl, i_left[i], xr, i_right[i]);
+            let zscan = Lerp::new(xl, z_left.interpolate(y), xr, z_right.interpolate(y));
+            let iscan = Lerp::new(xl, i_left.interpolate(y), xr, i_right.interpolate(y));
             let uscan = triangle
                 .uvs
                 .as_ref()
-                .map(|_| Self::interpolate(xl, u_left[i], xr, u_right[i]));
+                .map(|_| Lerp::new(xl, u_left.interpolate(y), xr, u_right.interpolate(y)));
             let vscan = triangle
                 .uvs
                 .as_ref()
-                .map(|_| Self::interpolate(xl, v_left[i], xr, v_right[i]));
+                .map(|_| Lerp::new(xl, v_left.interpolate(y), xr, v_right.interpolate(y)));
 
-            let nxscan = Self::interpolate(xl, nx_left[i], xr, nx_right[i]);
-            let nyscan = Self::interpolate(xl, ny_left[i], xr, ny_right[i]);
-            let nzscan = Self::interpolate(xl, nz_left[i], xr, nz_right[i]);
+            let nxscan = Lerp::new(xl, nx_left.interpolate(y), xr, nx_right.interpolate(y));
+            let nyscan = Lerp::new(xl, ny_left.interpolate(y), xr, ny_right.interpolate(y));
+            let nzscan = Lerp::new(xl, nz_left.interpolate(y), xr, nz_right.interpolate(y));
 
             let mut x = xl;
             while x <= xr {
-                let inverse_z = zscan[(x - xl) as usize];
+                let inverse_z = zscan.interpolate(x);
                 let color =
                     if let (Some(uscan), Some(vscan), Some(texture)) = (&uscan, &vscan, texture) {
                         texture.texel(
-                            uscan[(x - xl) as usize] / inverse_z,
-                            vscan[(x - xl) as usize] / inverse_z,
+                            uscan.interpolate(x) / inverse_z,
+                            vscan.interpolate(x) / inverse_z,
                         )
                     } else {
                         color
                     };
                 let intensity = match self.shading {
-                    Shading::Gourad => iscan[(x - xl) as usize],
+                    Shading::Gourad => iscan.interpolate(x),
                     Shading::Phong => {
                         let vertex = self.unproject_point(x, y, 1.0 / inverse_z);
                         let normal = Vec3(
-                            nxscan[(x - xl) as usize],
-                            nyscan[(x - xl) as usize],
-                            nzscan[(x - xl) as usize],
+                            nxscan.interpolate(x),
+                            nyscan.interpolate(x),
+                            nzscan.interpolate(x),
                         );
                         Self::compute_illumination(vertex, camera_pos, normal, &light)
                     }
                 };
                 let illuminated_color = Color::from_vec3_f32s(&color.to_vec3_f32s() * intensity);
-                // let illuminated_color = color;
 
                 self.put_pixel(canvas, x, y, inverse_z, illuminated_color);
-                // self.put_pixel(canvas, x, y, zscan[(x - xl) as usize], color);
                 x += 1.0;
             }
             y += 1.0;
@@ -722,7 +694,7 @@ impl Rasterizer {
         let transformed_center = Vec4(0.0, 0.0, 0.0, 1.0);
         // let light_direction = &self.view_matrix * Vec4(0.6, -0.1, 1.0, 0.0);
         let light_direction = if self.shading == Shading::Phong {
-            Vec4(1.5, -1.5, 1.0, 0.0)
+            Vec4(1.5, -1.0, 1.0, 0.0)
         } else {
             Vec4(0.0, 0.4, 1.0, 0.0)
         };

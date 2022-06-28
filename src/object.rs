@@ -157,8 +157,8 @@ pub struct Triangle {
     pub p1: Vec3<f32>,
     pub p2: Vec3<f32>,
     pub color: Color,
-    pub uvs: Option<Box<[Vec2<f32>; 3]>>,
-    pub normals: Option<Box<[Vec3<f32>; 3]>>,
+    pub uvs: Option<[Vec2<f32>; 3]>,
+    pub normals: Option<[Vec3<f32>; 3]>,
 }
 
 impl Triangle {
@@ -174,7 +174,7 @@ impl Triangle {
             p1,
             p2,
             color,
-            normals: normals.map(Box::new),
+            normals: normals,
             uvs: None,
         }
     }
@@ -191,12 +191,12 @@ impl Triangle {
             p1,
             p2,
             color: Color(0, 0, 0),
-            uvs: Some(Box::new([
+            uvs: Some([
                 uvs[0].clone().into(),
                 uvs[1].clone().into(),
                 uvs[2].clone().into(),
-            ])),
-            normals: normals.map(Box::new),
+            ]),
+            normals: normals,
         }
     }
 
@@ -211,11 +211,11 @@ impl Triangle {
             color: self.color,
             uvs: self.uvs.clone(),
             normals: self.normals.clone().map(|normals| {
-                Box::new([
+                [
                     (view_proj * normals[0].to_point_vec4()).drop_fourth_component(),
                     (view_proj * normals[1].to_point_vec4()).drop_fourth_component(),
                     (view_proj * normals[2].to_point_vec4()).drop_fourth_component(),
-                ])
+                ]
             }),
             // normals: self.normals.clone(),
         }

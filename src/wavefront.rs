@@ -157,20 +157,20 @@ impl WavefrontObj {
                 p2: self.vertices[indices.2 .0 - 1].clone(),
                 color: color.unwrap_or_default(),
                 normals: if normals {
-                    Some(Box::new([
-                        self.vertex_normal_indices[indices.0 .2.unwrap() - 1].clone(),
-                        self.vertex_normal_indices[indices.1 .2.unwrap() - 1].clone(),
-                        self.vertex_normal_indices[indices.2 .2.unwrap() - 1].clone(),
-                    ]))
+                    Some([
+                        self.vertex_normal_indices[indices.0 .2.unwrap() - 1].clone() * 1.0,
+                        self.vertex_normal_indices[indices.1 .2.unwrap() - 1].clone() * 1.0,
+                        self.vertex_normal_indices[indices.2 .2.unwrap() - 1].clone() * 1.0,
+                    ])
                 } else {
                     None
                 },
                 uvs: if textured {
-                    Some(Box::new([
+                    Some([
                         self.vertex_texture_indices[indices.1 .1.unwrap() - 1].clone(),
                         self.vertex_texture_indices[indices.2 .1.unwrap() - 1].clone(),
                         self.vertex_texture_indices[indices.0 .1.unwrap() - 1].clone(),
-                    ]))
+                    ])
                 } else {
                     None
                 },
